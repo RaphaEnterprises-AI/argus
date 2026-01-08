@@ -8,15 +8,60 @@ export const runtime = 'edge';
 // Allow streaming responses up to 5 minutes for long-running tests
 export const maxDuration = 300;
 
-// Helper to create fetch with timeout
-function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 90000): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+// Helper to create fetch with timeout and retry logic
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = 90000,
+  maxRetries: number = 2
+): Promise<Response> {
+  let lastError: Error | null = null;
 
-  return fetch(url, {
-    ...options,
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeoutId));
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      // Don't retry on client errors (4xx), only on server errors (5xx) or network issues
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+
+      // Server error - retry with exponential backoff
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on abort (timeout)
+      if (lastError.name === 'AbortError') {
+        throw lastError;
+      }
+
+      // Network error - retry with exponential backoff
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw lastError;
+    }
+  }
+
+  throw lastError || new Error('Request failed after retries');
 }
 
 // Argus Core Backend (Python - LangGraph Orchestrator)
@@ -357,9 +402,10 @@ Report any self-healing that occurred during tests.`,
           browser: z.string().optional().describe('Browser to use (chrome, firefox, safari)'),
         }),
         execute: async ({ url, steps, browser }) => {
-          try {
-            const timeout = Math.max(120000, steps.length * 30000 + 30000);
+          // Longer timeout for tests: 3 minutes base + 45 seconds per step
+          const timeout = Math.max(180000, steps.length * 45000 + 60000);
 
+          try {
             const response = await fetchWithTimeout(`${WORKER_URL}/test`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -388,9 +434,25 @@ Report any self-healing that occurred during tests.`,
             };
           } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
-              return { success: false, error: `Test timed out. Try reducing the number of steps.` };
+              return {
+                success: false,
+                error: `Test timed out after ${Math.round(timeout / 1000)} seconds. The test may still be running on the server.`,
+                errorDetails: {
+                  category: 'timeout',
+                  isRetryable: true,
+                  suggestedAction: 'Try reducing the number of steps or running fewer steps at once.',
+                },
+              };
             }
-            return { success: false, error: String(error) };
+            return {
+              success: false,
+              error: String(error),
+              errorDetails: {
+                category: 'network',
+                isRetryable: true,
+                suggestedAction: 'Check your internet connection and try again.',
+              },
+            };
           }
         },
       }),
@@ -474,10 +536,11 @@ Report any self-healing that occurred during tests.`,
           maxSteps: z.number().optional().describe('Maximum steps to take'),
         }),
         execute: async ({ url, instruction, maxSteps }) => {
-          try {
-            const steps = maxSteps || 10;
-            const timeout = Math.max(120000, steps * 30000 + 60000);
+          const steps = maxSteps || 10;
+          // Longer timeout for agent: 3 minutes base + 45 seconds per step
+          const timeout = Math.max(180000, steps * 45000 + 60000);
 
+          try {
             const response = await fetchWithTimeout(`${WORKER_URL}/agent`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -505,9 +568,25 @@ Report any self-healing that occurred during tests.`,
             };
           } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
-              return { success: false, error: `Agent timed out. Try reducing maxSteps.` };
+              return {
+                success: false,
+                error: `Agent timed out after ${Math.round(timeout / 1000)} seconds. The task may still be running.`,
+                errorDetails: {
+                  category: 'timeout',
+                  isRetryable: true,
+                  suggestedAction: 'Try reducing maxSteps or breaking the task into smaller parts.',
+                },
+              };
             }
-            return { success: false, error: String(error) };
+            return {
+              success: false,
+              error: String(error),
+              errorDetails: {
+                category: 'network',
+                isRetryable: true,
+                suggestedAction: 'Check your internet connection and try again.',
+              },
+            };
           }
         },
       }),

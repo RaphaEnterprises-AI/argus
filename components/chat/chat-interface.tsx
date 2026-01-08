@@ -711,13 +711,40 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
     },
   });
 
-  // Persist when user sends a message (no setTimeout needed)
+  // Persist user message immediately when they submit (before AI responds)
   const handleSubmitWithPersist = useCallback((e: React.FormEvent<HTMLFormElement>) => {
-    handleSubmit(e);
-  }, [handleSubmit]);
+    e.preventDefault();
+    const userInput = input.trim();
+    if (!userInput) return;
 
+    // Get current values from refs to avoid stale closures
+    const currentConversationId = conversationIdRef.current;
+    const currentOnMessagesChange = onMessagesChangeRef.current;
+
+    // Submit to AI SDK
+    handleSubmit(e);
+
+    // Immediately persist the user message
+    if (currentOnMessagesChange && currentConversationId) {
+      // Create a user message object to persist immediately
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userInput,
+        createdAt: new Date(),
+      };
+
+      // Call with just the user message - the parent will handle deduplication
+      // We pass a fake messages array with just this message
+      // The parent's handleMessagesChange will check against storedMessages
+      setTimeout(() => {
+        currentOnMessagesChange([...messages, userMessage]);
+      }, 100);
+    }
+  }, [handleSubmit, input, messages]);
+
+  // Persist assistant messages when AI response completes (onFinish already handles this)
   // REMOVED: useEffect that was causing infinite re-renders
-  // Messages are now only persisted on explicit events (onFinish)
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

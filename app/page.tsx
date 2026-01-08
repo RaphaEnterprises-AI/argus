@@ -42,6 +42,33 @@ function isValidUUID(str: string | null): str is string {
   return uuidRegex.test(str);
 }
 
+// LocalStorage key for persisting active conversation
+const ACTIVE_CONVERSATION_KEY = 'argus_active_conversation_id';
+
+// Helper to safely access localStorage (SSR-safe)
+function getStoredConversationId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(ACTIVE_CONVERSATION_KEY);
+    return isValidUUID(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredConversationId(id: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id && isValidUUID(id)) {
+      localStorage.setItem(ACTIVE_CONVERSATION_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_CONVERSATION_KEY);
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 // Conversation list component (shared between desktop sidebar and mobile sheet)
 function ConversationList({
   conversations,
@@ -119,6 +146,7 @@ function AppContent() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Use ref to avoid stale closure issues in callbacks
   const activeConversationIdRef = useRef<string | null>(null);
@@ -128,6 +156,34 @@ function AppContent() {
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
   const addMessage = useAddMessage();
+
+  // Restore active conversation from localStorage on mount
+  useEffect(() => {
+    const storedId = getStoredConversationId();
+    if (storedId) {
+      setActiveConversationId(storedId);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Validate stored conversation exists after conversations load
+  useEffect(() => {
+    if (!conversationsLoading && isHydrated && activeConversationId) {
+      const exists = conversations.some(c => c.id === activeConversationId);
+      if (!exists) {
+        // Stored conversation was deleted, clear it
+        setActiveConversationId(null);
+        setStoredConversationId(null);
+      }
+    }
+  }, [conversations, conversationsLoading, isHydrated, activeConversationId]);
+
+  // Persist active conversation to localStorage when it changes
+  useEffect(() => {
+    if (isHydrated) {
+      setStoredConversationId(activeConversationId);
+    }
+  }, [activeConversationId, isHydrated]);
 
   // Keep ref in sync with state
   useEffect(() => {
