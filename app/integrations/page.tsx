@@ -27,6 +27,9 @@ import {
   EyeOff,
   RefreshCw,
   Sparkles,
+  MessageSquare,
+  CircleDot,
+  ListTodo,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -133,6 +136,60 @@ console.log(\`Test \${result.status}: \${result.passed}/\${result.total} passed\
 const discovery = await agent.discover('http://localhost:3000');
 console.log(\`Found \${discovery.flows.length} user flows\`);`;
 
+const JIRA_CONFIG = `// Jira Integration Configuration
+{
+  "instance_url": "https://your-company.atlassian.net",
+  "project_key": "ARGUS",
+  "issue_type": "Bug",
+  "auto_create": true,
+  "fields_mapping": {
+    "title": "Test {{test_name}} failed",
+    "description": "{{failure_details}}",
+    "priority": "{{severity}}",
+    "labels": ["argus", "automated-test"]
+  },
+  "transitions": {
+    "on_pass": "Done",
+    "on_fail": "In Progress"
+  }
+}`;
+
+const LINEAR_CONFIG = `// Linear Integration Configuration
+{
+  "team_id": "ENG",
+  "project_id": "your-project-id",
+  "auto_create_issues": true,
+  "issue_template": {
+    "title": "[Argus] {{test_name}} failure",
+    "description": "### Test Failure Report\\n\\n{{failure_details}}",
+    "priority": 2,
+    "labels": ["bug", "testing"],
+    "assignee": "auto"
+  },
+  "cycle_tracking": true,
+  "link_to_runs": true
+}`;
+
+const DISCORD_WEBHOOK = `// Discord Webhook Configuration
+{
+  "webhook_url": "https://discord.com/api/webhooks/...",
+  "notifications": {
+    "on_failure": true,
+    "on_pass": false,
+    "on_healing": true
+  },
+  "embed_config": {
+    "color_success": "#22c55e",
+    "color_failure": "#ef4444",
+    "include_screenshot": true,
+    "include_logs": true
+  },
+  "mentions": {
+    "on_critical": "@engineering",
+    "enabled": true
+  }
+}`;
+
 interface Integration {
   id: string;
   name: string;
@@ -166,6 +223,30 @@ const integrations: Integration[] = [
     icon: Slack,
     connected: true,
     configExample: '',
+  },
+  {
+    id: 'discord',
+    name: 'Discord Notifications',
+    description: 'Send test alerts and reports to Discord channels',
+    icon: MessageSquare,
+    connected: false,
+    configExample: DISCORD_WEBHOOK,
+  },
+  {
+    id: 'jira',
+    name: 'Jira',
+    description: 'Auto-create Jira issues for test failures and track fixes',
+    icon: CircleDot,
+    connected: false,
+    configExample: JIRA_CONFIG,
+  },
+  {
+    id: 'linear',
+    name: 'Linear',
+    description: 'Create Linear issues and track testing in your cycles',
+    icon: ListTodo,
+    connected: true,
+    configExample: LINEAR_CONFIG,
   },
   {
     id: 'webhook',
@@ -676,7 +757,7 @@ export default function IntegrationsPage() {
                 className="space-y-6"
               >
                 {/* CI/CD Integration Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
                   {integrations.map((integration) => (
                     <button
                       key={integration.id}
@@ -736,6 +817,148 @@ export default function IntegrationsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button>Connect Slack</Button>
+                      <Button variant="outline">Test Connection</Button>
+                    </div>
+                  </div>
+                ) : selectedIntegration.id === 'discord' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Discord Webhook URL</label>
+                      <Input
+                        placeholder="https://discord.com/api/webhooks/..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Bot Name (optional)</label>
+                      <Input placeholder="Argus Bot" className="mt-1" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Notification Events</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" defaultChecked className="rounded" />
+                          Test Failures
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" className="rounded" />
+                          Test Passes
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" defaultChecked className="rounded" />
+                          Self-Healing Events
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" className="rounded" />
+                          Daily Summary
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button>Connect Discord</Button>
+                      <Button variant="outline">Test Webhook</Button>
+                    </div>
+                  </div>
+                ) : selectedIntegration.id === 'jira' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Jira Instance URL</label>
+                      <Input
+                        placeholder="https://your-company.atlassian.net"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Email</label>
+                        <Input
+                          type="email"
+                          placeholder="you@company.com"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">API Token</label>
+                        <Input
+                          type="password"
+                          placeholder="Your Jira API token"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Project Key</label>
+                        <Input placeholder="ARGUS" className="mt-1" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Issue Type</label>
+                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
+                          <option>Bug</option>
+                          <option>Task</option>
+                          <option>Story</option>
+                          <option>Sub-task</option>
+                        </select>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" defaultChecked className="rounded" />
+                      Auto-create issues on test failures
+                    </label>
+                    <div className="flex gap-2">
+                      <Button>Connect Jira</Button>
+                      <Button variant="outline">Test Connection</Button>
+                    </div>
+                  </div>
+                ) : selectedIntegration.id === 'linear' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Linear API Key</label>
+                      <Input
+                        type="password"
+                        placeholder="lin_api_..."
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Get your API key from Linear Settings &gt; API
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Team</label>
+                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
+                          <option value="">Select team...</option>
+                          <option value="eng">Engineering</option>
+                          <option value="qa">QA</option>
+                          <option value="product">Product</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Default Priority</label>
+                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
+                          <option value="1">Urgent</option>
+                          <option value="2">High</option>
+                          <option value="3" selected>Medium</option>
+                          <option value="4">Low</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" defaultChecked className="rounded" />
+                        Auto-create issues on test failures
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" defaultChecked className="rounded" />
+                        Link issues to test runs
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" className="rounded" />
+                        Track in active cycle
+                      </label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button>Connect Linear</Button>
                       <Button variant="outline">Test Connection</Button>
                     </div>
                   </div>

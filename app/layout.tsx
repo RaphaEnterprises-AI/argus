@@ -5,6 +5,8 @@ import { dark } from '@clerk/themes';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Providers } from '@/lib/providers';
 import { SidebarProvider, MobileSidebar, MobileHeader } from '@/components/layout/sidebar';
+import { Toaster } from '@/components/ui/toaster';
+import { CommandPalette } from '@/components/shared/CommandPalette';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -87,6 +89,8 @@ export default function RootLayout({
                 <MobileHeader />
                 <MobileSidebar />
                 {children}
+                <CommandPalette />
+                <Toaster />
               </div>
             </SidebarProvider>
           </Providers>
