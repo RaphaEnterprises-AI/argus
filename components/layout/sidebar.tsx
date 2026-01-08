@@ -27,6 +27,12 @@ import {
   FolderKanban,
   Menu,
   X,
+  LayoutDashboard,
+  Calendar,
+  Table2,
+  Bell,
+  AlertTriangle,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VersionBadge } from '@/components/ui/version-badge';
@@ -56,6 +62,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 }
 
 const coreNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, description: 'Overview' },
   { name: 'Projects', href: '/projects', icon: FolderKanban, description: 'Manage apps' },
   { name: 'Chat', href: '/', icon: MessageSquare, description: 'AI Assistant' },
 ];
@@ -64,6 +71,8 @@ const testingNavigation = [
   { name: 'Test Runner', href: '/tests', icon: TestTube, description: 'Execute tests' },
   { name: 'Discovery', href: '/discovery', icon: Compass, description: 'Find testable surfaces' },
   { name: 'Visual AI', href: '/visual', icon: Eye, description: 'Visual regression' },
+  { name: 'Schedules', href: '/schedules', icon: Calendar, description: 'Scheduled runs' },
+  { name: 'Parameterized', href: '/parameterized', icon: Table2, description: 'Data-driven' },
 ];
 
 const analysisNavigation = [
@@ -71,6 +80,7 @@ const analysisNavigation = [
   { name: 'AI Insights', href: '/insights', icon: Brain, description: 'Pattern analysis' },
   { name: 'Global Testing', href: '/global', icon: Globe, description: 'Cross-browser' },
   { name: 'Intelligence', href: '/intelligence', icon: AlertCircle, description: 'Quality score' },
+  { name: 'Flaky Tests', href: '/flaky', icon: AlertTriangle, description: 'Flaky detection' },
   { name: 'Self-Healing', href: '/healing', icon: Wrench, description: 'Auto-fix config' },
   { name: 'Reports', href: '/reports', icon: BarChart3, description: 'Analytics' },
 ];
@@ -79,6 +89,8 @@ const enterpriseNavigation = [
   { name: 'Team', href: '/team', icon: Users, description: 'Manage team' },
   { name: 'API Keys', href: '/api-keys', icon: Key, description: 'API access' },
   { name: 'Audit Logs', href: '/audit', icon: ScrollText, description: 'Activity logs' },
+  { name: 'Notifications', href: '/notifications', icon: Bell, description: 'Alert channels' },
+  { name: 'Activity', href: '/activity', icon: Activity, description: 'Live activity' },
 ];
 
 const bottomNavigation = [

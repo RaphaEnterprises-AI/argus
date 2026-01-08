@@ -5,19 +5,30 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Settings,
   Key,
   Bell,
   Globe,
   Shield,
-  Database,
   Cpu,
   Save,
   Eye,
   EyeOff,
   CheckCircle,
   Info,
+  User,
+  Building,
+  Camera,
+  Mail,
+  Users,
+  CreditCard,
+  Crown,
+  Trash2,
+  UserPlus,
+  Clock,
+  Monitor,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VersionBadge } from '@/components/ui/version-badge';
@@ -30,12 +41,23 @@ interface SettingSection {
 }
 
 const sections: SettingSection[] = [
+  { id: 'profile', name: 'Profile', icon: User },
+  { id: 'organization', name: 'Organization', icon: Building },
   { id: 'api', name: 'API Configuration', icon: Key },
   { id: 'notifications', name: 'Notifications', icon: Bell },
-  { id: 'general', name: 'General', icon: Globe },
+  { id: 'defaults', name: 'Defaults', icon: Settings },
   { id: 'security', name: 'Security', icon: Shield },
   { id: 'about', name: 'About', icon: Info },
 ];
+
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
+  avatar: string;
+  joinedAt: string;
+}
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -57,12 +79,42 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState('api');
+  const [activeSection, setActiveSection] = useState('profile');
   const [showApiKey, setShowApiKey] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Profile state
+  const [profile, setProfile] = useState({
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    avatarUrl: '',
+    bio: 'QA Engineer passionate about automated testing',
+    timezone: 'America/New_York',
+    language: 'en',
+  });
+
+  // Organization state
+  const [organization, setOrganization] = useState({
+    name: 'Acme Corporation',
+    slug: 'acme-corp',
+    plan: 'pro',
+    billing_email: 'billing@acme.com',
+    membersCount: 8,
+    maxMembers: 25,
+  });
+
+  // Team members mock data
+  const [teamMembers] = useState<TeamMember[]>([
+    { id: '1', name: 'John Doe', email: 'john@acme.com', role: 'owner', avatar: '', joinedAt: '2024-01-15' },
+    { id: '2', name: 'Jane Smith', email: 'jane@acme.com', role: 'admin', avatar: '', joinedAt: '2024-02-20' },
+    { id: '3', name: 'Bob Johnson', email: 'bob@acme.com', role: 'member', avatar: '', joinedAt: '2024-03-10' },
+    { id: '4', name: 'Alice Brown', email: 'alice@acme.com', role: 'member', avatar: '', joinedAt: '2024-04-05' },
+    { id: '5', name: 'Charlie Davis', email: 'charlie@acme.com', role: 'viewer', avatar: '', joinedAt: '2024-05-15' },
+  ]);
+
+  // Settings state
   const [settings, setSettings] = useState({
-    anthropicApiKey: '',  // Load from environment or user input - NEVER hardcode
+    anthropicApiKey: '',
     backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
     defaultModel: 'claude-sonnet-4-5',
     maxIterations: 50,
@@ -72,6 +124,11 @@ export default function SettingsPage() {
     emailEnabled: false,
     slackWebhook: '',
     emailRecipients: '',
+    slackChannel: '#testing-alerts',
+    notifyOnSuccess: true,
+    notifyOnFailure: true,
+    notifyOnHealing: false,
+    dailyDigest: true,
     autoRetry: true,
     retryCount: 3,
     parallelTests: 4,
@@ -79,11 +136,25 @@ export default function SettingsPage() {
     saveScreenshots: true,
     twoFactorEnabled: false,
     sessionTimeout: 30,
+    defaultTimeout: 30000,
+    defaultViewport: '1920x1080',
+    defaultBaseUrl: 'http://localhost:3000',
+    defaultBrowser: 'chromium',
   });
 
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'owner': return 'bg-purple-500/10 text-purple-500';
+      case 'admin': return 'bg-blue-500/10 text-blue-500';
+      case 'member': return 'bg-green-500/10 text-green-500';
+      case 'viewer': return 'bg-gray-500/10 text-gray-500';
+      default: return 'bg-gray-500/10 text-gray-500';
+    }
   };
 
   return (
@@ -136,6 +207,250 @@ export default function SettingsPage() {
 
             {/* Settings Content */}
             <div className="flex-1 space-y-6">
+              {/* Profile Section */}
+              {activeSection === 'profile' && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Profile Information
+                      </CardTitle>
+                      <CardDescription>
+                        Manage your personal information and preferences
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Avatar */}
+                      <div className="flex items-center gap-6">
+                        <div className="relative">
+                          <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                            {profile.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <button className="absolute bottom-0 right-0 p-2 rounded-full bg-background border shadow-sm hover:bg-muted transition-colors">
+                            <Camera className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{profile.name}</h3>
+                          <p className="text-sm text-muted-foreground">{profile.email}</p>
+                          <Button variant="outline" size="sm" className="mt-2">
+                            Upload Photo
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Name and Email */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Full Name</label>
+                          <Input
+                            value={profile.name}
+                            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Email Address</label>
+                          <Input
+                            type="email"
+                            value={profile.email}
+                            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bio */}
+                      <div>
+                        <label className="text-sm font-medium">Bio</label>
+                        <Textarea
+                          value={profile.bio}
+                          onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                          placeholder="Tell us about yourself..."
+                          className="mt-1"
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* Timezone and Language */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Timezone</label>
+                          <select
+                            value={profile.timezone}
+                            onChange={(e) => setProfile({ ...profile, timezone: e.target.value })}
+                            className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                          >
+                            <option value="America/New_York">Eastern Time (ET)</option>
+                            <option value="America/Chicago">Central Time (CT)</option>
+                            <option value="America/Denver">Mountain Time (MT)</option>
+                            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                            <option value="Europe/London">London (GMT)</option>
+                            <option value="Europe/Paris">Paris (CET)</option>
+                            <option value="Asia/Tokyo">Tokyo (JST)</option>
+                            <option value="Asia/Singapore">Singapore (SGT)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Language</label>
+                          <select
+                            value={profile.language}
+                            onChange={(e) => setProfile({ ...profile, language: e.target.value })}
+                            className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                          >
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="zh">Chinese</option>
+                          </select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* Organization Section */}
+              {activeSection === 'organization' && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Building className="h-5 w-5" />
+                        Organization Details
+                      </CardTitle>
+                      <CardDescription>
+                        Manage your organization settings and billing
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Org Name and Slug */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Organization Name</label>
+                          <Input
+                            value={organization.name}
+                            onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Slug</label>
+                          <Input
+                            value={organization.slug}
+                            onChange={(e) => setOrganization({ ...organization, slug: e.target.value })}
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Used in URLs: app.heyargus.ai/{organization.slug}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Plan */}
+                      <div className="p-4 rounded-lg border bg-gradient-to-r from-primary/5 to-purple-500/5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Crown className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Pro Plan</div>
+                              <div className="text-sm text-muted-foreground">$99/month</div>
+                            </div>
+                          </div>
+                          <Button variant="outline">
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Manage Billing
+                          </Button>
+                        </div>
+                        <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-muted-foreground">Team Members</div>
+                            <div className="font-medium">{organization.membersCount} / {organization.maxMembers}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Test Runs</div>
+                            <div className="font-medium">Unlimited</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Retention</div>
+                            <div className="font-medium">90 days</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Billing Email */}
+                      <div>
+                        <label className="text-sm font-medium">Billing Email</label>
+                        <Input
+                          type="email"
+                          value={organization.billing_email}
+                          onChange={(e) => setOrganization({ ...organization, billing_email: e.target.value })}
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Invoices will be sent to this email
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Team Members */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Team Members
+                      </CardTitle>
+                      <CardDescription>
+                        Manage your team members and their roles
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="text-sm text-muted-foreground">
+                          {teamMembers.length} members
+                        </div>
+                        <Button size="sm">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Invite Member
+                        </Button>
+                      </div>
+                      <div className="space-y-3">
+                        {teamMembers.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/60 to-purple-600/60 flex items-center justify-center text-white font-medium">
+                                {member.name.split(' ').map(n => n[0]).join('')}
+                              </div>
+                              <div>
+                                <div className="font-medium">{member.name}</div>
+                                <div className="text-sm text-muted-foreground">{member.email}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={cn('px-2 py-1 rounded-full text-xs font-medium', getRoleBadgeColor(member.role))}>
+                                {member.role}
+                              </span>
+                              {member.role !== 'owner' && (
+                                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {/* API Configuration */}
               {activeSection === 'api' && (
                 <>
                   <Card>
@@ -159,6 +474,7 @@ export default function SettingsPage() {
                               onChange={(e) =>
                                 setSettings({ ...settings, anthropicApiKey: e.target.value })
                               }
+                              placeholder="sk-ant-..."
                             />
                           </div>
                           <Button
@@ -242,185 +558,316 @@ export default function SettingsPage() {
                           />
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
 
-                      <div>
-                        <label className="text-sm font-medium">Screenshot Resolution</label>
-                        <select
-                          value={settings.screenshotResolution}
-                          onChange={(e) =>
-                            setSettings({ ...settings, screenshotResolution: e.target.value })
-                          }
-                          className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
-                        >
-                          <option value="1280x720">1280x720 (720p)</option>
-                          <option value="1920x1080">1920x1080 (1080p)</option>
-                          <option value="2560x1440">2560x1440 (1440p)</option>
-                        </select>
+              {/* Notifications */}
+              {activeSection === 'notifications' && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Bell className="h-5 w-5" />
+                        Notification Settings
+                      </CardTitle>
+                      <CardDescription>
+                        Configure how you receive test results and alerts
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Slack */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">Slack Notifications</div>
+                            <div className="text-sm text-muted-foreground">
+                              Receive test results in Slack
+                            </div>
+                          </div>
+                          <Toggle
+                            checked={settings.slackEnabled}
+                            onChange={(v) => setSettings({ ...settings, slackEnabled: v })}
+                          />
+                        </div>
+
+                        {settings.slackEnabled && (
+                          <div className="pl-4 border-l-2 border-primary/20 space-y-4">
+                            <div>
+                              <label className="text-sm font-medium">Webhook URL</label>
+                              <Input
+                                value={settings.slackWebhook}
+                                onChange={(e) =>
+                                  setSettings({ ...settings, slackWebhook: e.target.value })
+                                }
+                                placeholder="https://hooks.slack.com/services/..."
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Channel</label>
+                              <Input
+                                value={settings.slackChannel}
+                                onChange={(e) =>
+                                  setSettings({ ...settings, slackChannel: e.target.value })
+                                }
+                                placeholder="#testing-alerts"
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">Email Notifications</div>
+                            <div className="text-sm text-muted-foreground">
+                              Receive test results via email
+                            </div>
+                          </div>
+                          <Toggle
+                            checked={settings.emailEnabled}
+                            onChange={(v) => setSettings({ ...settings, emailEnabled: v })}
+                          />
+                        </div>
+
+                        {settings.emailEnabled && (
+                          <div className="pl-4 border-l-2 border-primary/20">
+                            <label className="text-sm font-medium">Recipients</label>
+                            <Input
+                              value={settings.emailRecipients}
+                              onChange={(e) =>
+                                setSettings({ ...settings, emailRecipients: e.target.value })
+                              }
+                              placeholder="team@example.com, alerts@example.com"
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Separate multiple emails with commas
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notification Events */}
+                      <div className="pt-4 border-t">
+                        <h4 className="font-medium mb-4">Notification Events</h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Test Success</div>
+                              <div className="text-sm text-muted-foreground">Notify when tests pass</div>
+                            </div>
+                            <Toggle
+                              checked={settings.notifyOnSuccess}
+                              onChange={(v) => setSettings({ ...settings, notifyOnSuccess: v })}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Test Failure</div>
+                              <div className="text-sm text-muted-foreground">Notify when tests fail</div>
+                            </div>
+                            <Toggle
+                              checked={settings.notifyOnFailure}
+                              onChange={(v) => setSettings({ ...settings, notifyOnFailure: v })}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Self-Healing Events</div>
+                              <div className="text-sm text-muted-foreground">Notify when tests are auto-healed</div>
+                            </div>
+                            <Toggle
+                              checked={settings.notifyOnHealing}
+                              onChange={(v) => setSettings({ ...settings, notifyOnHealing: v })}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Daily Digest</div>
+                              <div className="text-sm text-muted-foreground">Receive daily summary</div>
+                            </div>
+                            <Toggle
+                              checked={settings.dailyDigest}
+                              onChange={(v) => setSettings({ ...settings, dailyDigest: v })}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </>
               )}
 
-              {activeSection === 'notifications' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      Notification Settings
-                    </CardTitle>
-                    <CardDescription>
-                      Configure how you receive test results and alerts
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Slack Notifications</div>
-                        <div className="text-sm text-muted-foreground">
-                          Receive test results in Slack
-                        </div>
-                      </div>
-                      <Toggle
-                        checked={settings.slackEnabled}
-                        onChange={(v) => setSettings({ ...settings, slackEnabled: v })}
-                      />
-                    </div>
-
-                    {settings.slackEnabled && (
-                      <div>
-                        <label className="text-sm font-medium">Slack Webhook URL</label>
-                        <Input
-                          value={settings.slackWebhook}
-                          onChange={(e) =>
-                            setSettings({ ...settings, slackWebhook: e.target.value })
-                          }
-                          placeholder="https://hooks.slack.com/services/..."
-                          className="mt-1"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Email Notifications</div>
-                        <div className="text-sm text-muted-foreground">
-                          Receive test results via email
-                        </div>
-                      </div>
-                      <Toggle
-                        checked={settings.emailEnabled}
-                        onChange={(v) => setSettings({ ...settings, emailEnabled: v })}
-                      />
-                    </div>
-
-                    {settings.emailEnabled && (
-                      <div>
-                        <label className="text-sm font-medium">Email Recipients</label>
-                        <Input
-                          value={settings.emailRecipients}
-                          onChange={(e) =>
-                            setSettings({ ...settings, emailRecipients: e.target.value })
-                          }
-                          placeholder="team@example.com, alerts@example.com"
-                          className="mt-1"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Separate multiple emails with commas
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {activeSection === 'general' && (
+              {/* Defaults */}
+              {activeSection === 'defaults' && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Settings className="h-5 w-5" />
-                      General Settings
+                      Default Test Settings
                     </CardTitle>
                     <CardDescription>
-                      Configure test execution behavior
+                      Configure default values for test execution
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="font-medium">Auto-Retry Failed Tests</div>
-                        <div className="text-sm text-muted-foreground">
-                          Automatically retry flaky tests
-                        </div>
-                      </div>
-                      <Toggle
-                        checked={settings.autoRetry}
-                        onChange={(v) => setSettings({ ...settings, autoRetry: v })}
-                      />
-                    </div>
-
-                    {settings.autoRetry && (
-                      <div>
-                        <label className="text-sm font-medium">Retry Count</label>
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Default Timeout (ms)
+                        </label>
                         <Input
                           type="number"
-                          value={settings.retryCount}
+                          value={settings.defaultTimeout}
                           onChange={(e) =>
-                            setSettings({ ...settings, retryCount: parseInt(e.target.value) })
+                            setSettings({ ...settings, defaultTimeout: parseInt(e.target.value) })
                           }
-                          min="1"
-                          max="5"
-                          className="mt-1 w-24"
+                          className="mt-1"
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Maximum time to wait for page elements
+                        </p>
                       </div>
-                    )}
+                      <div>
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          <Monitor className="h-4 w-4" />
+                          Default Viewport
+                        </label>
+                        <select
+                          value={settings.defaultViewport}
+                          onChange={(e) =>
+                            setSettings({ ...settings, defaultViewport: e.target.value })
+                          }
+                          className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                        >
+                          <option value="1280x720">1280x720 (720p)</option>
+                          <option value="1920x1080">1920x1080 (1080p)</option>
+                          <option value="2560x1440">2560x1440 (1440p)</option>
+                          <option value="375x812">375x812 (iPhone)</option>
+                          <option value="768x1024">768x1024 (iPad)</option>
+                        </select>
+                      </div>
+                    </div>
 
                     <div>
-                      <label className="text-sm font-medium">Parallel Test Execution</label>
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Default Base URL
+                      </label>
                       <Input
-                        type="number"
-                        value={settings.parallelTests}
+                        value={settings.defaultBaseUrl}
                         onChange={(e) =>
-                          setSettings({ ...settings, parallelTests: parseInt(e.target.value) })
+                          setSettings({ ...settings, defaultBaseUrl: e.target.value })
                         }
-                        min="1"
-                        max="10"
-                        className="mt-1 w-24"
+                        placeholder="http://localhost:3000"
+                        className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Number of tests to run in parallel
+                        Base URL used when running tests locally
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Headless Mode</div>
-                        <div className="text-sm text-muted-foreground">
-                          Run browser tests without UI
-                        </div>
-                      </div>
-                      <Toggle
-                        checked={settings.headlessMode}
-                        onChange={(v) => setSettings({ ...settings, headlessMode: v })}
-                      />
+                    <div>
+                      <label className="text-sm font-medium">Default Browser</label>
+                      <select
+                        value={settings.defaultBrowser}
+                        onChange={(e) =>
+                          setSettings({ ...settings, defaultBrowser: e.target.value })
+                        }
+                        className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                      >
+                        <option value="chromium">Chromium</option>
+                        <option value="firefox">Firefox</option>
+                        <option value="webkit">WebKit (Safari)</option>
+                      </select>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Save Screenshots</div>
-                        <div className="text-sm text-muted-foreground">
-                          Save screenshots for all test steps
+                    <div className="pt-4 border-t space-y-4">
+                      <h4 className="font-medium">Execution Options</h4>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Auto-Retry Failed Tests</div>
+                          <div className="text-sm text-muted-foreground">
+                            Automatically retry flaky tests
+                          </div>
                         </div>
+                        <Toggle
+                          checked={settings.autoRetry}
+                          onChange={(v) => setSettings({ ...settings, autoRetry: v })}
+                        />
                       </div>
-                      <Toggle
-                        checked={settings.saveScreenshots}
-                        onChange={(v) => setSettings({ ...settings, saveScreenshots: v })}
-                      />
+
+                      {settings.autoRetry && (
+                        <div>
+                          <label className="text-sm font-medium">Retry Count</label>
+                          <Input
+                            type="number"
+                            value={settings.retryCount}
+                            onChange={(e) =>
+                              setSettings({ ...settings, retryCount: parseInt(e.target.value) })
+                            }
+                            min="1"
+                            max="5"
+                            className="mt-1 w-24"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-sm font-medium">Parallel Test Execution</label>
+                        <Input
+                          type="number"
+                          value={settings.parallelTests}
+                          onChange={(e) =>
+                            setSettings({ ...settings, parallelTests: parseInt(e.target.value) })
+                          }
+                          min="1"
+                          max="10"
+                          className="mt-1 w-24"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Number of tests to run in parallel
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Headless Mode</div>
+                          <div className="text-sm text-muted-foreground">
+                            Run browser tests without UI
+                          </div>
+                        </div>
+                        <Toggle
+                          checked={settings.headlessMode}
+                          onChange={(v) => setSettings({ ...settings, headlessMode: v })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Save Screenshots</div>
+                          <div className="text-sm text-muted-foreground">
+                            Save screenshots for all test steps
+                          </div>
+                        </div>
+                        <Toggle
+                          checked={settings.saveScreenshots}
+                          onChange={(v) => setSettings({ ...settings, saveScreenshots: v })}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
+              {/* Security */}
               {activeSection === 'security' && (
                 <Card>
                   <CardHeader>
@@ -478,6 +925,7 @@ export default function SettingsPage() {
                 </Card>
               )}
 
+              {/* About */}
               {activeSection === 'about' && (
                 <Card>
                   <CardHeader>
@@ -536,7 +984,7 @@ export default function SettingsPage() {
                           rel="noopener noreferrer"
                           className="block text-sm text-primary hover:underline"
                         >
-                          Documentation →
+                          Documentation
                         </a>
                         <a
                           href="https://github.com/samuelvinay91/argus"
@@ -544,7 +992,7 @@ export default function SettingsPage() {
                           rel="noopener noreferrer"
                           className="block text-sm text-primary hover:underline"
                         >
-                          GitHub Repository →
+                          GitHub Repository
                         </a>
                         <a
                           href="https://heyargus.ai"
@@ -552,14 +1000,14 @@ export default function SettingsPage() {
                           rel="noopener noreferrer"
                           className="block text-sm text-primary hover:underline"
                         >
-                          Website →
+                          Website
                         </a>
                       </div>
                     </div>
 
                     <div className="pt-4 border-t text-center text-sm text-muted-foreground">
-                      <p>© {new Date().getFullYear()} Argus. All rights reserved.</p>
-                      <p className="mt-1">Built with ❤️ for better testing</p>
+                      <p>2024-{new Date().getFullYear()} Argus. All rights reserved.</p>
+                      <p className="mt-1">Built with care for better testing</p>
                     </div>
                   </CardContent>
                 </Card>
