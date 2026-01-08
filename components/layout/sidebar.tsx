@@ -37,6 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { VersionBadge } from '@/components/ui/version-badge';
 import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
 
 // Sidebar context for global state
 const SidebarContext = createContext<{
@@ -129,6 +130,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     onNavigate?.();
   };
 
+  const openCommandPalette = () => {
+    // Dispatch keyboard event to open command palette
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      bubbles: true,
+    });
+    document.dispatchEvent(event);
+  };
+
   return (
     <>
       {/* Logo */}
@@ -140,6 +151,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-card" />
         </div>
         <span className="font-bold text-lg tracking-tight">Argus</span>
+      </div>
+
+      {/* Search Button */}
+      <div className="px-3 py-3 border-b border-border">
+        <button
+          onClick={openCommandPalette}
+          className="flex w-full items-center gap-2 h-9 px-3 text-sm text-muted-foreground rounded-md border bg-muted/50 hover:bg-muted transition-colors"
+        >
+          <Search className="h-4 w-4" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
       </div>
 
       {/* Main Navigation */}
