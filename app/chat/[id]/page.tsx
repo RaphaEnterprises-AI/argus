@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -120,7 +120,6 @@ function ChatPageContent() {
   const router = useRouter();
   const conversationId = params.id as string;
 
-  const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -152,20 +151,45 @@ function ChatPageContent() {
     }
   }, [conversations, conversationsLoading, conversationId]);
 
-  // Convert stored messages to AI SDK format
-  useEffect(() => {
-    if (storedMessages.length > 0 && conversationId) {
-      const aiMessages: Message[] = storedMessages.map((msg: ChatMessage) => ({
+  // Convert stored messages to AI SDK format - computed directly, not in useEffect
+  // This fixes the race condition where ChatInterface mounted before messages were converted
+  const initialMessages: Message[] = useMemo(() => {
+    if (!storedMessages || storedMessages.length === 0 || !conversationId) {
+      return [];
+    }
+
+    return storedMessages.map((msg: ChatMessage) => {
+      // For messages with incomplete tool invocations (state='call'), mark them as completed
+      // to prevent Claude from trying to continue old executions
+      let toolInvocations = msg.tool_invocations as unknown as Message['toolInvocations'];
+
+      // If this is an assistant message with pending tool calls, convert them to show as "interrupted"
+      if (toolInvocations && Array.isArray(toolInvocations)) {
+        toolInvocations = toolInvocations.map((tool: any) => {
+          if (tool.state === 'call') {
+            // Mark incomplete tool calls as completed with an "interrupted" result
+            return {
+              ...tool,
+              state: 'result',
+              result: {
+                success: false,
+                error: 'Session interrupted - this action was not completed',
+                interrupted: true,
+              },
+            };
+          }
+          return tool;
+        });
+      }
+
+      return {
         id: msg.id,
         role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
         createdAt: new Date(msg.created_at),
-        toolInvocations: msg.tool_invocations as unknown as Message['toolInvocations'],
-      }));
-      setInitialMessages(aiMessages);
-    } else {
-      setInitialMessages([]);
-    }
+        toolInvocations,
+      };
+    });
   }, [storedMessages, conversationId]);
 
   const handleNewConversation = async () => {
