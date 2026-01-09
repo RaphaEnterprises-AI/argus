@@ -152,10 +152,11 @@ export async function POST(req: Request) {
           console.error('Python backend error:', response.status, await response.text());
           // Fall through to direct Claude API
         } else {
-          // Return the SSE stream directly from Python backend
+          // Return the AI SDK text stream from Python backend
+          // Important: Use text/plain for AI SDK data stream protocol, NOT text/event-stream
           return new Response(response.body, {
             headers: {
-              'Content-Type': 'text/event-stream',
+              'Content-Type': 'text/plain; charset=utf-8',
               'Cache-Control': 'no-cache',
               'Connection': 'keep-alive',
             },
