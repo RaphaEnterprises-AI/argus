@@ -22,7 +22,7 @@ export const runtime = 'edge';
 export const maxDuration = 300;
 
 // Argus Core Backend (Python - LangGraph Orchestrator)
-const BACKEND_URL = process.env.ARGUS_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.ARGUS_BACKEND_URL || 'https://argus-brain-production.up.railway.app';
 
 // Cloudflare Worker API URL (Browser Automation)
 const WORKER_URL = process.env.E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
