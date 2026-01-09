@@ -7,16 +7,15 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   Play,
   Plus,
-  MoreHorizontal,
   Trash2,
-  Edit,
   Loader2,
   CheckCircle2,
   XCircle,
   Clock,
   Zap,
   Activity,
-  Eye,
+  Radio,
+  Users,
 } from 'lucide-react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DataTable, StatusDot, Badge } from '@/components/ui/data-table';
 import { LiveExecutionModal } from '@/components/tests/live-execution-modal';
+import { RealtimeActivityFeed } from '@/components/activity/realtime-activity-feed';
 import {
   useTests,
   useTestRuns,
@@ -33,6 +33,8 @@ import {
   useTestRunSubscription,
 } from '@/lib/hooks/use-tests';
 import { useProjects, useCreateProject } from '@/lib/hooks/use-projects';
+import { useRealtimeTests } from '@/hooks/use-realtime-tests';
+import { useProjectPresence } from '@/hooks/use-presence';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { Test, TestRun } from '@/lib/supabase/types';
 import { cn } from '@/lib/utils';
@@ -41,6 +43,7 @@ export default function TestsPage() {
   const { user } = useUser();
   const [showNewTest, setShowNewTest] = useState(false);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showActivityFeed, setShowActivityFeed] = useState(false);
   const [newTestName, setNewTestName] = useState('');
   const [newTestSteps, setNewTestSteps] = useState('');
   const [newProjectName, setNewProjectName] = useState('');
@@ -60,16 +63,25 @@ export default function TestsPage() {
   const { data: tests = [], isLoading: testsLoading } = useTests(currentProject || null);
   const { data: recentRuns = [], isLoading: runsLoading } = useTestRuns(currentProject || null, 10);
 
+  // Realtime subscriptions
+  const { runningTests, isSubscribed: isRealtimeSubscribed } = useRealtimeTests({
+    projectId: currentProject || undefined,
+    enabled: !!currentProject,
+  });
+
+  // Presence tracking
+  const { onlineUsers, isConnected: isPresenceConnected } = useProjectPresence(currentProject);
+
   // Mutations
   const createProject = useCreateProject();
   const createTest = useCreateTest();
   const deleteTest = useDeleteTest();
   const runTest = useRunSingleTest();
 
-  // Real-time subscription
+  // Real-time subscription (legacy, kept for compatibility)
   useTestRunSubscription(currentProject || null);
 
-  // Stats
+  // Stats with realtime data
   const stats = useMemo(() => {
     const passedRuns = recentRuns.filter((r) => r.status === 'passed').length;
     const failedRuns = recentRuns.filter((r) => r.status === 'failed').length;
@@ -83,8 +95,9 @@ export default function TestsPage() {
       passRate: passRate.toFixed(1),
       avgDuration: avgDuration.toFixed(1),
       recentRuns: recentRuns.length,
+      runningCount: runningTests.length,
     };
-  }, [tests, recentRuns]);
+  }, [tests, recentRuns, runningTests]);
 
   // Handle create project
   const handleCreateProject = async () => {
@@ -137,6 +150,7 @@ export default function TestsPage() {
   };
 
   // Handle test execution complete - save results to Supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleExecutionComplete = async (success: boolean, stepResults: any[]) => {
     if (!currentProject || !selectedTest) return;
 
@@ -356,9 +370,50 @@ export default function TestsPage() {
                 <span className="font-medium">{stats.avgDuration}s</span>
                 <span className="text-muted-foreground">avg</span>
               </div>
+              {/* Running tests indicator */}
+              {stats.runningCount > 0 && (
+                <>
+                  <div className="h-4 w-px bg-border" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                    <span className="font-medium text-blue-500">{stats.runningCount}</span>
+                    <span className="text-muted-foreground">running</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex-1" />
+
+            {/* Realtime Status Indicator */}
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                'flex items-center gap-1.5 text-xs px-2 py-1 rounded-full',
+                isRealtimeSubscribed ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
+              )}>
+                <Radio className="h-3 w-3" />
+                {isRealtimeSubscribed ? 'Live' : 'Offline'}
+              </div>
+
+              {/* Online users indicator */}
+              {onlineUsers.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-500">
+                  <Users className="h-3 w-3" />
+                  {onlineUsers.length} online
+                </div>
+              )}
+            </div>
+
+            {/* Activity Feed Toggle */}
+            <Button
+              size="sm"
+              variant={showActivityFeed ? 'default' : 'outline'}
+              onClick={() => setShowActivityFeed(!showActivityFeed)}
+              className="h-9"
+            >
+              <Activity className="h-4 w-4 mr-1" />
+              Activity
+            </Button>
 
             {/* App URL */}
             <Input
@@ -395,84 +450,116 @@ export default function TestsPage() {
           </div>
         </header>
 
-        <div className="p-6">
-          {/* New Test Form */}
-          {showNewTest && (
-            <div className="mb-6 p-4 rounded-lg border bg-card animate-fade-up">
-              <h3 className="font-medium mb-4">Create New Test</h3>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Test name (e.g., User Login Flow)"
-                  value={newTestName}
-                  onChange={(e) => setNewTestName(e.target.value)}
-                />
-                <Textarea
-                  placeholder="Enter test steps, one per line:&#10;Navigate to login page&#10;Enter username&#10;Enter password&#10;Click Sign In&#10;Verify dashboard is visible"
-                  value={newTestSteps}
-                  onChange={(e) => setNewTestSteps(e.target.value)}
-                  rows={5}
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setShowNewTest(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleCreateTest}
-                    disabled={createTest.isPending || !newTestName || !newTestSteps}
-                  >
-                    {createTest.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Create Test
-                  </Button>
+        <div className="flex">
+          {/* Main Content */}
+          <div className={cn('flex-1 p-6', showActivityFeed && 'pr-0')}>
+            {/* New Test Form */}
+            {showNewTest && (
+              <div className="mb-6 p-4 rounded-lg border bg-card animate-fade-up">
+                <h3 className="font-medium mb-4">Create New Test</h3>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Test name (e.g., User Login Flow)"
+                    value={newTestName}
+                    onChange={(e) => setNewTestName(e.target.value)}
+                  />
+                  <Textarea
+                    placeholder="Enter test steps, one per line:&#10;Navigate to login page&#10;Enter username&#10;Enter password&#10;Click Sign In&#10;Verify dashboard is visible"
+                    value={newTestSteps}
+                    onChange={(e) => setNewTestSteps(e.target.value)}
+                    rows={5}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setShowNewTest(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateTest}
+                      disabled={createTest.isPending || !newTestName || !newTestSteps}
+                    >
+                      {createTest.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Create Test
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Recent Runs */}
-          {recentRuns.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Recent Runs</h3>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {recentRuns.slice(0, 8).map((run) => (
-                  <div
-                    key={run.id}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-lg border min-w-[180px]',
-                      run.status === 'passed' && 'border-success/30 bg-success/5',
-                      run.status === 'failed' && 'border-error/30 bg-error/5',
-                      run.status === 'running' && 'border-info/30 bg-info/5'
-                    )}
-                  >
-                    <StatusDot status={run.status} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{run.name || 'Test Run'}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
-                      </div>
-                    </div>
-                    {run.duration_ms && (
-                      <span className="text-xs text-muted-foreground">
-                        {(run.duration_ms / 1000).toFixed(1)}s
-                      </span>
-                    )}
+            {/* Running Tests Banner */}
+            {runningTests.length > 0 && (
+              <div className="mb-6 p-4 rounded-lg border border-blue-500/30 bg-blue-500/5 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                  <div>
+                    <p className="font-medium text-blue-500">
+                      {runningTests.length} test{runningTests.length > 1 ? 's' : ''} running
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {runningTests.map(t => t.name || 'Test').join(', ')}
+                    </p>
                   </div>
-                ))}
+                </div>
               </div>
+            )}
+
+            {/* Recent Runs */}
+            {recentRuns.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">Recent Runs</h3>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {recentRuns.slice(0, 8).map((run) => (
+                    <div
+                      key={run.id}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border min-w-[180px] transition-all',
+                        run.status === 'passed' && 'border-success/30 bg-success/5',
+                        run.status === 'failed' && 'border-error/30 bg-error/5',
+                        run.status === 'running' && 'border-info/30 bg-info/5 animate-pulse'
+                      )}
+                    >
+                      <StatusDot status={run.status} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{run.name || 'Test Run'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
+                        </div>
+                      </div>
+                      {run.status === 'running' ? (
+                        <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                      ) : run.duration_ms ? (
+                        <span className="text-xs text-muted-foreground">
+                          {(run.duration_ms / 1000).toFixed(1)}s
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tests Table */}
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">All Tests</h3>
+              <DataTable
+                columns={columns}
+                data={tests}
+                searchKey="name"
+                searchPlaceholder="Search tests..."
+                isLoading={testsLoading}
+                emptyMessage="No tests yet. Create your first test to get started."
+              />
+            </div>
+          </div>
+
+          {/* Activity Feed Sidebar */}
+          {showActivityFeed && (
+            <div className="w-80 border-l bg-card/50 p-4 animate-in slide-in-from-right">
+              <RealtimeActivityFeed
+                projectId={currentProject}
+                maxItems={20}
+              />
             </div>
           )}
-
-          {/* Tests Table */}
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">All Tests</h3>
-            <DataTable
-              columns={columns}
-              data={tests}
-              searchKey="name"
-              searchPlaceholder="Search tests..."
-              isLoading={testsLoading}
-              emptyMessage="No tests yet. Create your first test to get started."
-            />
-          </div>
         </div>
       </main>
 
