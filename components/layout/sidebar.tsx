@@ -540,6 +540,44 @@ export function MobileSidebar() {
   );
 }
 
+// Compact theme toggle for mobile header (cycles through themes)
+function MobileThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-8 w-8" />;
+  }
+
+  const cycleTheme = () => {
+    if (theme === 'dark') setTheme('light');
+    else if (theme === 'light') setTheme('system');
+    else setTheme('dark');
+  };
+
+  const getIcon = () => {
+    if (theme === 'dark') return <Moon className="h-4 w-4" />;
+    if (theme === 'light') return <Sun className="h-4 w-4" />;
+    return <Monitor className="h-4 w-4" />;
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-8 w-8 p-0"
+      onClick={cycleTheme}
+      title={`Theme: ${theme}`}
+    >
+      {getIcon()}
+    </Button>
+  );
+}
+
 // Mobile header with menu button
 export function MobileHeader() {
   return (
@@ -555,14 +593,17 @@ export function MobileHeader() {
           <span className="font-bold text-lg tracking-tight">Argus</span>
         </div>
       </div>
-      <UserButton
-        appearance={{
-          elements: {
-            avatarBox: "h-8 w-8 rounded-lg",
-          },
-        }}
-        afterSignOutUrl="/"
-      />
+      <div className="flex items-center gap-2">
+        <MobileThemeToggle />
+        <UserButton
+          appearance={{
+            elements: {
+              avatarBox: "h-8 w-8 rounded-lg",
+            },
+          }}
+          afterSignOutUrl="/"
+        />
+      </div>
     </div>
   );
 }
