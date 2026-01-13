@@ -420,11 +420,11 @@ const MessageBubble = memo(function MessageBubble({ isUser, children, className 
   if (isUser) {
     return (
       <Card className={cn(
-        'max-w-[90%] sm:max-w-[85%]',
+        'max-w-[90%] sm:max-w-[85%] min-w-0 overflow-hidden',
         'bg-primary text-primary-foreground',
         className
       )}>
-        <CardContent className="p-2 sm:p-3">
+        <CardContent className="p-2 sm:p-3 min-w-0 overflow-hidden break-words">
           {children}
         </CardContent>
       </Card>
@@ -437,7 +437,7 @@ const MessageBubble = memo(function MessageBubble({ isUser, children, className 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={cn(
-        'max-w-[90%] sm:max-w-[85%] relative overflow-hidden rounded-lg',
+        'max-w-[90%] sm:max-w-[85%] min-w-0 relative overflow-hidden rounded-lg',
         className
       )}
     >
@@ -448,7 +448,7 @@ const MessageBubble = memo(function MessageBubble({ isUser, children, className 
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 rounded-lg" />
 
       {/* Content */}
-      <div className="relative p-2 sm:p-3">
+      <div className="relative p-2 sm:p-3 min-w-0 overflow-hidden break-words">
         {children}
       </div>
     </motion.div>
@@ -506,121 +506,132 @@ const LazyCodeBlock = memo(function LazyCodeBlock({
   if (!style) {
     // Show loading placeholder while theme loads
     return (
-      <div className="rounded-lg bg-[#282c34] p-4 my-2">
-        <pre className="text-sm text-gray-300 font-mono overflow-x-auto">{code}</pre>
+      <div className="rounded-lg bg-[#282c34] p-4 my-2 max-w-full overflow-hidden">
+        <pre className="text-sm text-gray-300 font-mono overflow-x-auto max-w-full">{code}</pre>
       </div>
     );
   }
 
   return (
-    <SyntaxHighlighter
-      style={style}
-      language={language}
-      PreTag="div"
-      className="rounded-lg text-sm !my-2"
-      customStyle={{ margin: 0, padding: '1rem' }}
-    >
-      {code}
-    </SyntaxHighlighter>
+    <div className="max-w-full overflow-x-auto">
+      <SyntaxHighlighter
+        style={style}
+        language={language}
+        PreTag="div"
+        className="rounded-lg text-sm !my-2"
+        customStyle={{ margin: 0, padding: '1rem', maxWidth: '100%' }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
   );
 });
 
 // Memoized Markdown renderer component for chat messages
 const MarkdownRenderer = memo(function MarkdownRenderer({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code({ className, children, ...props }) {
-          const match = /language-(\w+)/.exec(className || '');
-          const codeContent = String(children).replace(/\n$/, '');
+    <div className="min-w-0 max-w-full overflow-hidden break-words prose-sm">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || '');
+            const codeContent = String(children).replace(/\n$/, '');
 
-          // Check if it's an inline code or code block
-          const isInline = !match && !codeContent.includes('\n');
+            // Check if it's an inline code or code block
+            const isInline = !match && !codeContent.includes('\n');
 
-          if (isInline) {
+            if (isInline) {
+              return (
+                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono break-all" {...props}>
+                  {children}
+                </code>
+              );
+            }
+
+            // Use lazy-loaded code block for syntax highlighting
             return (
-              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
-                {children}
-              </code>
+              <div className="max-w-full overflow-hidden">
+                <LazyCodeBlock language={match ? match[1] : 'text'} code={codeContent} />
+              </div>
             );
-          }
-
-          // Use lazy-loaded code block for syntax highlighting
-          return <LazyCodeBlock language={match ? match[1] : 'text'} code={codeContent} />;
-        },
-        p({ children }) {
-          return <p className="mb-2 last:mb-0">{children}</p>;
-        },
-        ul({ children }) {
-          return <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>;
-        },
-        ol({ children }) {
-          return <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>;
-        },
-        li({ children }) {
-          return <li className="ml-2">{children}</li>;
-        },
-        h1({ children }) {
-          return <h1 className="text-xl font-bold mb-2 mt-3">{children}</h1>;
-        },
-        h2({ children }) {
-          return <h2 className="text-lg font-bold mb-2 mt-3">{children}</h2>;
-        },
-        h3({ children }) {
-          return <h3 className="text-base font-bold mb-1 mt-2">{children}</h3>;
-        },
-        blockquote({ children }) {
-          return (
-            <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic my-2">
-              {children}
-            </blockquote>
-          );
-        },
-        a({ href, children }) {
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline hover:no-underline"
-            >
-              {children}
-            </a>
-          );
-        },
-        table({ children }) {
-          return (
-            <div className="overflow-x-auto my-2">
-              <table className="min-w-full border-collapse border border-muted">
+          },
+          pre({ children }) {
+            return <div className="max-w-full overflow-x-auto">{children}</div>;
+          },
+          p({ children }) {
+            return <p className="mb-2 last:mb-0 break-words">{children}</p>;
+          },
+          ul({ children }) {
+            return <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>;
+          },
+          ol({ children }) {
+            return <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>;
+          },
+          li({ children }) {
+            return <li className="ml-2 break-words">{children}</li>;
+          },
+          h1({ children }) {
+            return <h1 className="text-xl font-bold mb-2 mt-3 break-words">{children}</h1>;
+          },
+          h2({ children }) {
+            return <h2 className="text-lg font-bold mb-2 mt-3 break-words">{children}</h2>;
+          },
+          h3({ children }) {
+            return <h3 className="text-base font-bold mb-1 mt-2 break-words">{children}</h3>;
+          },
+          blockquote({ children }) {
+            return (
+              <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic my-2 break-words">
                 {children}
-              </table>
-            </div>
-          );
-        },
-        th({ children }) {
-          return (
-            <th className="border border-muted bg-muted px-3 py-1 text-left font-semibold">
-              {children}
-            </th>
-          );
-        },
-        td({ children }) {
-          return <td className="border border-muted px-3 py-1">{children}</td>;
-        },
-        hr() {
-          return <hr className="my-4 border-muted" />;
-        },
-        strong({ children }) {
-          return <strong className="font-bold">{children}</strong>;
-        },
-        em({ children }) {
-          return <em className="italic">{children}</em>;
-        },
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+              </blockquote>
+            );
+          },
+          a({ href, children }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:no-underline break-all"
+              >
+                {children}
+              </a>
+            );
+          },
+          table({ children }) {
+            return (
+              <div className="overflow-x-auto my-2 max-w-full">
+                <table className="min-w-full border-collapse border border-muted">
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          th({ children }) {
+            return (
+              <th className="border border-muted bg-muted px-3 py-1 text-left font-semibold">
+                {children}
+              </th>
+            );
+          },
+          td({ children }) {
+            return <td className="border border-muted px-3 py-1">{children}</td>;
+          },
+          hr() {
+            return <hr className="my-4 border-muted" />;
+          },
+          strong({ children }) {
+            return <strong className="font-bold">{children}</strong>;
+          },
+          em({ children }) {
+            return <em className="italic">{children}</em>;
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 });
 
@@ -674,19 +685,19 @@ function ToolCallDisplay({ toolName, args, result, isLoading }: {
   };
 
   return (
-    <div className="my-3 rounded-lg border bg-muted/30 overflow-hidden">
+    <div className="my-3 rounded-lg border bg-muted/30 overflow-hidden min-w-0 max-w-full">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors"
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors min-w-0"
       >
         {getStatusIcon()}
-        <span className="font-medium text-sm">{label}</span>
+        <span className="font-medium text-sm flex-shrink-0">{label}</span>
         {urlValue && (
-          <span className="text-xs text-muted-foreground truncate max-w-[100px] sm:max-w-[200px]">
+          <span className="text-xs text-muted-foreground truncate max-w-[100px] sm:max-w-[200px] min-w-0">
             {urlValue}
           </span>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto flex-shrink-0">
           {expanded ? (
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           ) : (
@@ -703,10 +714,10 @@ function ToolCallDisplay({ toolName, args, result, isLoading }: {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-3 space-y-3">
-              <div>
+            <div className="px-4 pb-3 space-y-3 min-w-0 max-w-full">
+              <div className="min-w-0 max-w-full overflow-hidden">
                 <div className="text-xs font-medium text-muted-foreground mb-1">Parameters</div>
-                <pre className="text-xs bg-background rounded p-2 overflow-x-auto">
+                <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-w-full whitespace-pre-wrap break-all">
                   {argsJson}
                 </pre>
               </div>
@@ -854,7 +865,7 @@ const ERROR_CATEGORY_CONFIG: Record<string, { icon: typeof XCircle; color: strin
 function ResultDisplay({ result }: { result: unknown }) {
   if (!result || typeof result !== 'object') {
     return (
-      <pre className="text-xs bg-background rounded p-2 overflow-x-auto">
+      <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-w-full whitespace-pre-wrap break-all">
         {JSON.stringify(result, null, 2)}
       </pre>
     );
@@ -955,7 +966,7 @@ function ResultDisplay({ result }: { result: unknown }) {
               <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                 Technical details
               </summary>
-              <pre className="text-xs bg-background/50 rounded p-2 mt-1 overflow-x-auto whitespace-pre-wrap">
+              <pre className="text-xs bg-background/50 rounded p-2 mt-1 overflow-x-auto whitespace-pre-wrap break-all max-w-full">
                 {errorDetails.originalError}
               </pre>
             </details>
@@ -1087,8 +1098,8 @@ function ResultDisplay({ result }: { result: unknown }) {
 
   // Default JSON display with screenshots if available
   return (
-    <div>
-      <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-h-40">
+    <div className="min-w-0 max-w-full overflow-hidden">
+      <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-h-40 max-w-full whitespace-pre-wrap break-all">
         {JSON.stringify(result, null, 2)}
       </pre>
       {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} />}
@@ -1102,9 +1113,9 @@ function MessageContent({ message, isStreaming }: { message: Message; isStreamin
   if (message.toolInvocations && message.toolInvocations.length > 0) {
     const isStillStreaming = isStreaming && !message.toolInvocations.some(t => t.state === 'result');
     return (
-      <div>
+      <div className="min-w-0 max-w-full overflow-hidden">
         {message.content && (
-          <div className="max-w-none mb-3">
+          <div className="min-w-0 max-w-full overflow-hidden mb-3">
             <MarkdownRenderer content={message.content} />
             {isStillStreaming && (
               <motion.span
@@ -1131,7 +1142,7 @@ function MessageContent({ message, isStreaming }: { message: Message; isStreamin
   // Regular text content - always render markdown, add cursor while streaming
   // This prevents the jarring flash from raw markdown to rendered markdown
   return (
-    <div className="max-w-none">
+    <div className="min-w-0 max-w-full overflow-hidden">
       <MarkdownRenderer content={message.content} />
       {isStreaming && (
         <motion.span
@@ -1301,11 +1312,11 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-10rem)] lg:h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-10rem)] lg:h-[calc(100vh-12rem)] min-w-0 w-full overflow-hidden">
       {/* Chat Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 p-2 sm:p-4 scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 space-y-3 sm:space-y-4 p-2 sm:p-4 scroll-smooth"
       >
         {messages.length === 0 ? (
           <motion.div
@@ -1370,7 +1381,7 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
                     exit="exit"
                     layout
                     className={cn(
-                      'flex gap-3 mb-3 sm:mb-4',
+                      'flex gap-3 mb-3 sm:mb-4 min-w-0 max-w-full',
                       message.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
@@ -1382,7 +1393,7 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
                     )}
                     <MessageBubble isUser={message.role === 'user'}>
                       {message.role === 'user' ? (
-                        <div className="max-w-none text-primary-foreground [&_p]:text-primary-foreground [&_a]:text-primary-foreground [&_code]:bg-primary-foreground/20">
+                        <div className="min-w-0 max-w-full overflow-hidden text-primary-foreground [&_p]:text-primary-foreground [&_a]:text-primary-foreground [&_code]:bg-primary-foreground/20">
                           <MarkdownRenderer content={message.content} />
                         </div>
                       ) : (
