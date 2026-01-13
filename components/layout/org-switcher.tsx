@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
 import { ChevronDown, Plus, Settings, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthApi } from '@/lib/hooks/use-auth-api';
 
 interface Organization {
   id: string;
@@ -55,7 +55,7 @@ function OrgAvatar({ org, size = 'md' }: { org: Organization; size?: 'sm' | 'md'
 
 export function OrganizationSwitcher() {
   const router = useRouter();
-  const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { isSignedIn, isLoaded, fetchJson } = useAuthApi();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -65,31 +65,30 @@ export function OrganizationSwitcher() {
   // Memoize fetchOrganizations to include in useEffect dependencies
   const fetchOrganizations = useCallback(async () => {
     try {
-      // Get JWT token for authentication
-      const token = await getToken();
+      // Debug: Log auth state
+      console.log('[OrgSwitcher] Auth state:', { isLoaded, isSignedIn });
 
-      // Debug: Log token status
-      console.log('[OrgSwitcher] Token status:', token ? `Present (${token.substring(0, 20)}...)` : 'NULL');
-
-      if (!token) {
-        console.warn('[OrgSwitcher] No token available, skipping fetch');
+      if (!isLoaded || !isSignedIn) {
+        console.warn('[OrgSwitcher] Not authenticated, skipping fetch');
         setLoading(false);
         return;
       }
 
-      const response = await fetch('/api/v1/users/me/organizations', {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+      // Use useAuthApi hook which makes direct requests to backend
+      // This bypasses Next.js rewrites which may strip Authorization headers
+      const response = await fetchJson<{ organizations?: Organization[] }>('/api/v1/users/me/organizations');
+
+      console.log('[OrgSwitcher] Fetch response:', {
+        status: response.status,
+        hasData: !!response.data,
+        error: response.error,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch organizations');
+      if (response.error) {
+        throw new Error(response.error);
       }
 
-      const data = await response.json();
-      const orgs: Organization[] = data.organizations || data || [];
+      const orgs: Organization[] = response.data?.organizations || [];
       setOrganizations(orgs);
 
       // Get current org from localStorage or default to first
@@ -107,7 +106,7 @@ export function OrganizationSwitcher() {
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [isLoaded, isSignedIn, fetchJson]);
 
   // Fetch organizations on mount - only when authenticated
   useEffect(() => {

@@ -12,7 +12,21 @@ import { useCallback, useMemo } from 'react';
 import { createAuthenticatedClient } from '@/lib/auth-api';
 
 // Backend URL (client-side needs NEXT_PUBLIC_ prefix)
-const BACKEND_URL = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL || 'http://localhost:8000';
+// In production, use the Railway backend URL directly to avoid Vercel rewrite issues
+const getBackendUrl = () => {
+  // Explicit override from environment
+  if (process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL;
+  }
+  // Production default (Vercel rewrites may strip Authorization headers)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://argus-brain-production.up.railway.app';
+  }
+  // Local development
+  return 'http://localhost:8000';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 export interface ApiResponse<T> {
   data: T | null;
