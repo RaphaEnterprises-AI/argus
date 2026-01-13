@@ -1100,11 +1100,19 @@ function ResultDisplay({ result }: { result: unknown }) {
 function MessageContent({ message, isStreaming }: { message: Message; isStreaming?: boolean }) {
   // Handle tool invocations (new AI SDK format)
   if (message.toolInvocations && message.toolInvocations.length > 0) {
+    const isStillStreaming = isStreaming && !message.toolInvocations.some(t => t.state === 'result');
     return (
       <div>
         {message.content && (
           <div className="max-w-none mb-3">
-            <StreamingText text={message.content} isStreaming={isStreaming && !message.toolInvocations.some(t => t.state === 'result')} />
+            <MarkdownRenderer content={message.content} />
+            {isStillStreaming && (
+              <motion.span
+                className="inline-block w-0.5 h-4 bg-primary ml-0.5 align-middle"
+                animate={{ opacity: [1, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
+              />
+            )}
           </div>
         )}
         {message.toolInvocations.map((tool, index) => (
@@ -1120,13 +1128,17 @@ function MessageContent({ message, isStreaming }: { message: Message; isStreamin
     );
   }
 
-  // Regular text content - use markdown renderer with streaming effect
+  // Regular text content - always render markdown, add cursor while streaming
+  // This prevents the jarring flash from raw markdown to rendered markdown
   return (
     <div className="max-w-none">
-      {isStreaming ? (
-        <StreamingText text={message.content} isStreaming={true} />
-      ) : (
-        <MarkdownRenderer content={message.content} />
+      <MarkdownRenderer content={message.content} />
+      {isStreaming && (
+        <motion.span
+          className="inline-block w-0.5 h-4 bg-primary ml-0.5 align-middle"
+          animate={{ opacity: [1, 0] }}
+          transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
+        />
       )}
     </div>
   );
