@@ -51,3 +51,22 @@ next-env.d.ts
 
 # Misc
 *.pem
+*.key
+credentials.json
+secrets.yaml
+
+# Additional env patterns (safety)
+.env.*
+!.env.example
+
+# Vercel check files
+.env.vercel-check
+
+# Claude/AI tools
+.claude/
+.serena/
+
+# Playwright
+.playwright-mcp/
+playwright-report/
+test-results/
