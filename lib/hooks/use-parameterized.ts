@@ -448,7 +448,7 @@ export function useIterationResults(resultId: string | null) {
 // RUN PARAMETERIZED TEST
 // ============================================
 
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://e2e-testing-agent.samuelvinay-kumar.workers.dev';
+const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 export function useRunParameterizedTest() {
   const supabase = getSupabaseClient();

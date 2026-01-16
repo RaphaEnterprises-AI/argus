@@ -3,7 +3,7 @@
  */
 
 const DASHBOARD_URL = 'http://localhost:3000';
-const WORKER_URL = 'https://e2e-testing-agent.samuelvinay-kumar.workers.dev';
+const WORKER_URL = 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 interface TestResult {
   name: string;

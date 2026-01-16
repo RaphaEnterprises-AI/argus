@@ -123,7 +123,7 @@ interface AIInsight {
 // Constants
 // ============================================
 
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://e2e-testing-agent.samuelvinay-kumar.workers.dev';
+const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 const DISCOVERY_MODES: { value: DiscoveryMode; label: string; description: string }[] = [
   { value: 'quick', label: 'Quick Scan', description: 'Fast surface-level analysis (5-10 pages)' },

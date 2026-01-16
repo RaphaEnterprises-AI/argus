@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { Test, TestRun, TestResult, InsertTables } from '@/lib/supabase/types';
 
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://e2e-testing-agent.samuelvinay-kumar.workers.dev';
+const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 // ============================================
 // TESTS

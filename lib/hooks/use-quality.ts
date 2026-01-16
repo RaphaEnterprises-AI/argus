@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { QualityAudit, AccessibilityIssue } from '@/lib/supabase/types';
 
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://e2e-testing-agent.samuelvinay-kumar.workers.dev';
+const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 export function useQualityAudits(projectId: string | null, limit = 10) {
   const supabase = getSupabaseClient();
