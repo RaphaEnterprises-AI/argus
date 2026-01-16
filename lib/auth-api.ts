@@ -5,10 +5,9 @@
  * It automatically includes the Clerk JWT token in all requests.
  */
 
-// Backend URLs
-const BACKEND_URL = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL ||
-                    process.env.ARGUS_BACKEND_URL ||
-                    'http://localhost:8000';
+// Backend URLs - use empty string for relative URLs (proxied through Next.js rewrites)
+const BACKEND_URL = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL ??
+                    (typeof window !== 'undefined' ? '' : (process.env.ARGUS_BACKEND_URL || 'http://localhost:8000'));
 
 export interface AuthenticatedFetchOptions extends RequestInit {
   token?: string;

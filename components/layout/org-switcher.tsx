@@ -1,20 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Plus, Settings, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthApi } from '@/lib/hooks/use-auth-api';
-
-interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
-  logo_url?: string;
-}
-
-const CURRENT_ORG_KEY = 'argus_current_org_id';
+import { useCurrentOrg, type Organization } from '@/lib/contexts/organization-context';
 
 function getPlanBadgeStyles(plan: string): string {
   switch (plan.toLowerCase()) {
@@ -55,69 +45,9 @@ function OrgAvatar({ org, size = 'md' }: { org: Organization; size?: 'sm' | 'md'
 
 export function OrganizationSwitcher() {
   const router = useRouter();
-  const { isSignedIn, isLoaded, fetchJson } = useAuthApi();
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
+  const { currentOrg, organizations, isLoading, switchOrganization } = useCurrentOrg();
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Memoize fetchOrganizations to include in useEffect dependencies
-  const fetchOrganizations = useCallback(async () => {
-    try {
-      // Debug: Log auth state
-      console.log('[OrgSwitcher] Auth state:', { isLoaded, isSignedIn });
-
-      if (!isLoaded || !isSignedIn) {
-        console.warn('[OrgSwitcher] Not authenticated, skipping fetch');
-        setLoading(false);
-        return;
-      }
-
-      // Use useAuthApi hook which makes direct requests to backend
-      // This bypasses Next.js rewrites which may strip Authorization headers
-      const response = await fetchJson<{ organizations?: Organization[] }>('/api/v1/users/me/organizations');
-
-      console.log('[OrgSwitcher] Fetch response:', {
-        status: response.status,
-        hasData: !!response.data,
-        error: response.error,
-      });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      const orgs: Organization[] = response.data?.organizations || [];
-      setOrganizations(orgs);
-
-      // Get current org from localStorage or default to first
-      const savedOrgId = localStorage.getItem(CURRENT_ORG_KEY);
-      const savedOrg = orgs.find((o) => o.id === savedOrgId);
-
-      if (savedOrg) {
-        setCurrentOrg(savedOrg);
-      } else if (orgs.length > 0) {
-        setCurrentOrg(orgs[0]);
-        localStorage.setItem(CURRENT_ORG_KEY, orgs[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching organizations:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [isLoaded, isSignedIn, fetchJson]);
-
-  // Fetch organizations on mount - only when authenticated
-  useEffect(() => {
-    // Wait for Clerk to load and confirm user is signed in
-    if (!isLoaded || !isSignedIn) {
-      setLoading(false);
-      return;
-    }
-
-    fetchOrganizations();
-  }, [isLoaded, isSignedIn, fetchOrganizations]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -144,8 +74,7 @@ export function OrganizationSwitcher() {
   }, []);
 
   const handleOrgSelect = (org: Organization) => {
-    localStorage.setItem(CURRENT_ORG_KEY, org.id);
-    setCurrentOrg(org);
+    switchOrganization(org.id);
     setIsOpen(false);
     // Reload to refresh data with new org context
     window.location.reload();
@@ -161,12 +90,7 @@ export function OrganizationSwitcher() {
     router.push('/settings');
   };
 
-  // Don't render anything if user is not signed in
-  if (isLoaded && !isSignedIn) {
-    return null;
-  }
-
-  if (loading || !isLoaded) {
+  if (isLoading) {
     return (
       <div className="px-3 py-3 border-b border-border">
         <div className="flex items-center gap-3 h-11 px-3 rounded-lg bg-muted/50 animate-pulse">

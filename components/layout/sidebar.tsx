@@ -39,7 +39,6 @@ import {
   Sparkles,
   Search,
   HeartPulse,
-  Cable,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VersionBadge } from '@/components/ui/version-badge';
@@ -98,7 +97,7 @@ const workspaceNavigation = [
   { name: 'Team', href: '/team', icon: Users },
   { name: 'Organizations', href: '/organizations', icon: Building2 },
   { name: 'API Keys', href: '/api-keys', icon: Key },
-  { name: 'MCP Sessions', href: '/mcp-sessions', icon: Cable },
+  { name: 'MCP Sessions', href: '/mcp-sessions', icon: Monitor },
   { name: 'Activity', href: '/activity', icon: Activity },
 ];
 
