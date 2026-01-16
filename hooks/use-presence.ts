@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@clerk/nextjs';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -26,6 +26,7 @@ export function usePresence(options: UsePresenceOptions = {}) {
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const isConnectedRef = useRef(false);
 
   // Update current page when navigation occurs
   const updatePresence = useCallback(async (updates: Partial<PresenceUser>) => {
@@ -84,6 +85,7 @@ export function usePresence(options: UsePresenceOptions = {}) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          isConnectedRef.current = true;
           setIsConnected(true);
           setChannel(presenceChannel);
 
@@ -98,6 +100,7 @@ export function usePresence(options: UsePresenceOptions = {}) {
             status: 'online',
           });
         } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          isConnectedRef.current = false;
           setIsConnected(false);
           setChannel(null);
         }
@@ -123,7 +126,7 @@ export function usePresence(options: UsePresenceOptions = {}) {
 
     // Heartbeat to keep presence alive
     const heartbeatInterval = setInterval(() => {
-      if (presenceChannel && isConnected) {
+      if (presenceChannel && isConnectedRef.current) {
         presenceChannel.track({
           id: user.id,
           email: user.primaryEmailAddress?.emailAddress || '',
@@ -140,10 +143,13 @@ export function usePresence(options: UsePresenceOptions = {}) {
       window.removeEventListener('popstate', handlePageChange);
       clearInterval(heartbeatInterval);
       presenceChannel.unsubscribe();
+      isConnectedRef.current = false;
       setIsConnected(false);
       setChannel(null);
     };
-  }, [user, channelName, trackPage, isConnected]);
+    // Note: isConnected intentionally excluded to prevent infinite reconnection loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, channelName, trackPage]);
 
   // Set status to 'away' when tab is hidden
   useEffect(() => {

@@ -65,9 +65,10 @@ const teamKeys = {
 };
 
 /**
- * Hook to fetch organization details
+ * Hook to fetch organization details by ID
+ * Note: Renamed from useOrganization to avoid conflict with Clerk's hook
  */
-export function useOrganization(orgId: string) {
+export function useOrganizationDetails(orgId: string) {
   return useQuery({
     queryKey: teamKeys.organization(orgId),
     queryFn: async () => {

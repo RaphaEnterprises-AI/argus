@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ApiClientProvider } from '@/components/providers/api-client-provider';
+import { OrganizationProvider } from '@/lib/contexts/organization-context';
 
 // ============================================================================
 // Reduced Motion Provider
@@ -85,7 +86,9 @@ export function Providers({ children }: { children: ReactNode }) {
         disableTransitionOnChange
       >
         <ApiClientProvider>
-          <ReducedMotionProvider>{children}</ReducedMotionProvider>
+          <OrganizationProvider>
+            <ReducedMotionProvider>{children}</ReducedMotionProvider>
+          </OrganizationProvider>
         </ApiClientProvider>
       </NextThemesProvider>
     </QueryClientProvider>

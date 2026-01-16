@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  useOrganization,
+  useOrganizationDetails,
   useMembers,
   usePendingInvitations,
   useInviteMember,
@@ -37,8 +37,7 @@ import {
   type Member,
   type PendingInvitation,
 } from '@/lib/hooks/use-team';
-
-const DEFAULT_ORG_ID = 'default';
+import { useCurrentOrg } from '@/lib/contexts/organization-context';
 
 const ROLE_CONFIG = {
   owner: { label: 'Owner', icon: Crown, color: 'text-amber-500' },
@@ -59,19 +58,23 @@ export default function TeamPage() {
 
   const queryClient = useQueryClient();
 
-  // Data fetching with authenticated hooks
-  const { data: organization, isLoading: orgLoading } = useOrganization(DEFAULT_ORG_ID);
-  const { data: members = [], isLoading: membersLoading, refetch: refetchMembers } = useMembers(DEFAULT_ORG_ID);
-  const { data: pendingInvitations = [], isLoading: invitationsLoading, refetch: refetchInvitations } = usePendingInvitations(DEFAULT_ORG_ID);
+  // Get current organization from context (backend UUID format)
+  const { currentOrg, isLoading: contextOrgLoading } = useCurrentOrg();
+  const orgId = currentOrg?.id || '';
 
-  // Mutations with authenticated hooks
-  const inviteMember = useInviteMember(DEFAULT_ORG_ID);
-  const removeMember = useRemoveMember(DEFAULT_ORG_ID);
-  const changeMemberRole = useChangeMemberRole(DEFAULT_ORG_ID);
-  const resendInvitation = useResendInvitation(DEFAULT_ORG_ID);
-  const revokeInvitation = useRevokeInvitation(DEFAULT_ORG_ID);
+  // Data fetching with authenticated hooks - using real org ID
+  const { data: organization, isLoading: orgLoading } = useOrganizationDetails(orgId);
+  const { data: members = [], isLoading: membersLoading, refetch: refetchMembers } = useMembers(orgId);
+  const { data: pendingInvitations = [], isLoading: invitationsLoading, refetch: refetchInvitations } = usePendingInvitations(orgId);
 
-  const loading = orgLoading || membersLoading || invitationsLoading;
+  // Mutations with authenticated hooks - using real org ID
+  const inviteMember = useInviteMember(orgId);
+  const removeMember = useRemoveMember(orgId);
+  const changeMemberRole = useChangeMemberRole(orgId);
+  const resendInvitation = useResendInvitation(orgId);
+  const revokeInvitation = useRevokeInvitation(orgId);
+
+  const loading = contextOrgLoading || orgLoading || membersLoading || invitationsLoading;
 
   const filteredMembers = members.filter((m: Member) =>
     m.email.toLowerCase().includes(searchQuery.toLowerCase())

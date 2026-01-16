@@ -12,14 +12,19 @@
  */
 
 // Backend URL configuration
+// Use empty string for relative URLs (proxied through Next.js rewrites)
 const getBackendUrl = () => {
-  if (process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL) {
-    return process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL;
+  // Check if explicitly set (including empty string for proxy)
+  const envUrl = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL;
+  if (envUrl !== undefined) {
+    return envUrl; // Empty string = use relative URLs for proxy
   }
+  // In browser on non-localhost, use production URL
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     return 'https://argus-brain-production.up.railway.app';
   }
-  return 'http://localhost:8000';
+  // Default: use relative URLs so Next.js proxy works
+  return '';
 };
 
 export const BACKEND_URL = getBackendUrl();

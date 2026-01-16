@@ -62,12 +62,20 @@ function ConversationList({
   return (
     <div className="p-2 space-y-1">
       {conversations.map((conv) => (
-        <button
+        <div
           key={conv.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(conv.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect(conv.id);
+            }
+          }}
           className={cn(
-            'w-full text-left p-3 rounded-lg transition-colors group',
-            'hover:bg-muted'
+            'w-full text-left p-3 rounded-lg transition-colors group cursor-pointer',
+            'hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
           )}
         >
           <div className="flex items-start gap-2">
@@ -95,7 +103,7 @@ function ConversationList({
               <Trash2 className="h-3 w-3 text-muted-foreground" />
             </Button>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
