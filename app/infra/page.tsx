@@ -66,70 +66,70 @@ export default function InfrastructurePage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 p-6 lg:p-8 overflow-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold">Infrastructure & Costs</h1>
-            <p className="text-muted-foreground">
-              Monitor browser pool infrastructure, AI usage, and cost optimization
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Period Selector */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              {[7, 30, 90].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setSelectedPeriod(period as 7 | 30 | 90)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                    selectedPeriod === period
-                      ? 'bg-background shadow text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {period}d
-                </button>
-              ))}
+      <main className="flex-1 lg:ml-64">
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">Infrastructure & Costs</h1>
+              <p className="text-muted-foreground">
+                Monitor browser pool infrastructure, AI usage, and cost optimization
+              </p>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* Period Selector */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                {[7, 30, 90].map((period) => (
+                  <button
+                    key={period}
+                    onClick={() => setSelectedPeriod(period as 7 | 30 | 90)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                      selectedPeriod === period
+                        ? 'bg-background shadow text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {period}d
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+                Refresh
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 mb-6 w-fit">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                activeTab === tab.id
-                  ? 'bg-background shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-background shadow text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Tab Content */}
-        <div className="space-y-6">
+          {/* Tab Content */}
           {activeTab === 'overview' && (
-            <>
+            <div className="space-y-6">
               {/* Cost Overview */}
               {isLoading ? (
                 <CostOverviewCardSkeleton />
@@ -157,11 +157,11 @@ export default function InfrastructurePage() {
                   />
                 )}
               </div>
-            </>
+            </div>
           )}
 
           {activeTab === 'browser-pool' && (
-            <>
+            <div className="space-y-6">
               {infraSnapshot.isLoading ? (
                 <BrowserNodesStatusSkeleton />
               ) : (
@@ -172,21 +172,21 @@ export default function InfrastructurePage() {
                   edgeNodes={infraSnapshot.data?.edge_nodes || null}
                 />
               )}
-            </>
+            </div>
           )}
 
           {activeTab === 'ai-costs' && (
-            <>
+            <div className="space-y-6">
               {llmCosts.isLoading ? (
                 <LLMCostTrackerSkeleton />
               ) : (
                 <LLMCostTracker data={llmCosts.data || null} />
               )}
-            </>
+            </div>
           )}
 
           {activeTab === 'recommendations' && (
-            <>
+            <div className="space-y-6">
               {recommendations.isLoading ? (
                 <RecommendationsPanelSkeleton />
               ) : (
@@ -196,7 +196,7 @@ export default function InfrastructurePage() {
                   onApply={handleApplyRecommendation}
                 />
               )}
-            </>
+            </div>
           )}
         </div>
       </main>
