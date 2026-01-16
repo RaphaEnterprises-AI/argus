@@ -2,6 +2,7 @@
 
 import { useChat, Message } from 'ai/react';
 import { useRef, useEffect, useState, useCallback, memo, useMemo, Suspense, lazy } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import dynamic from 'next/dynamic';
 import {
   Send,
@@ -1322,6 +1323,9 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
     summary?: { name: string; steps_count: number; assertions_count: number };
   } | null>(null);
 
+  // Get auth token for API calls
+  const { getToken } = useAuth();
+
   // Store conversationId in ref to avoid stale closure issues
   const conversationIdRef = useRef(conversationId);
   const onMessagesChangeRef = useRef(onMessagesChange);
@@ -1345,6 +1349,17 @@ export function ChatInterface({ conversationId, initialMessages = [], onMessages
     id: isValidConversationId ? conversationId : undefined,
     initialMessages,
     maxSteps: 3, // Allow multi-step tool calls (reduced from 5 to prevent duplicate calls)
+    // Custom fetch to include Clerk auth token
+    fetch: async (url, options) => {
+      const token = await getToken();
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...options?.headers,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+    },
     onError: (err) => {
       console.error('Chat error:', err);
       setError(err.message || 'An error occurred while processing your request');
