@@ -1063,20 +1063,22 @@ export default function DiscoveryPage() {
   const handleStartDiscovery = async () => {
     if (!currentProject) return;
     try {
-      // Map local config types to API-compatible types
-      const modeMap: Record<DiscoveryMode, 'full' | 'quick' | 'targeted' | 'continuous'> = {
-        quick: 'quick',
-        standard: 'full',
-        deep: 'full',
-        focused: 'targeted',
-        autonomous: 'continuous',
+      // Map local UI types to backend API enum values
+      // Backend enums: standard_crawl, quick_scan, deep_analysis, authenticated, api_first
+      const modeMap: Record<DiscoveryMode, 'standard_crawl' | 'quick_scan' | 'deep_analysis' | 'authenticated' | 'api_first'> = {
+        quick: 'quick_scan',
+        standard: 'standard_crawl',
+        deep: 'deep_analysis',
+        focused: 'deep_analysis',
+        autonomous: 'standard_crawl',
       };
 
-      const strategyMap: Record<CrawlStrategy, 'breadth_first' | 'depth_first' | 'priority_based' | 'ai_guided'> = {
+      // Backend enums: breadth_first, depth_first, priority_based, smart_adaptive
+      const strategyMap: Record<CrawlStrategy, 'breadth_first' | 'depth_first' | 'priority_based' | 'smart_adaptive'> = {
         bfs: 'breadth_first',
         dfs: 'depth_first',
         priority: 'priority_based',
-        'ai-guided': 'ai_guided',
+        'ai-guided': 'smart_adaptive',
       };
 
       // Convert comma-separated patterns to arrays
