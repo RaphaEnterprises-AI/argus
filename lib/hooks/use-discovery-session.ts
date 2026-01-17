@@ -21,9 +21,26 @@ const API_BASE = '/api/v1/discovery';
 // Types
 // ============================================
 
-export type DiscoveryMode = 'full' | 'quick' | 'targeted' | 'continuous';
-export type DiscoveryStrategy = 'breadth_first' | 'depth_first' | 'priority_based' | 'ai_guided';
+// IMPORTANT: These must match the backend enums in src/api/discovery.py
+export type DiscoveryMode = 'standard_crawl' | 'quick_scan' | 'deep_analysis' | 'authenticated' | 'api_first';
+export type DiscoveryStrategy = 'breadth_first' | 'depth_first' | 'priority_based' | 'smart_adaptive';
 export type DiscoverySessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+
+// Mapping for display purposes (user-friendly names)
+export const DISCOVERY_MODE_LABELS: Record<DiscoveryMode, string> = {
+  standard_crawl: 'Standard Crawl',
+  quick_scan: 'Quick Scan',
+  deep_analysis: 'Deep Analysis',
+  authenticated: 'Authenticated',
+  api_first: 'API First',
+};
+
+export const DISCOVERY_STRATEGY_LABELS: Record<DiscoveryStrategy, string> = {
+  breadth_first: 'Breadth First',
+  depth_first: 'Depth First',
+  priority_based: 'Priority Based',
+  smart_adaptive: 'AI Adaptive',
+};
 
 export interface AuthConfig {
   type: 'none' | 'basic' | 'bearer' | 'cookie' | 'oauth' | 'custom';

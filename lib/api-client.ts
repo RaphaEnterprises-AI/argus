@@ -31,6 +31,7 @@ export const BACKEND_URL = getBackendUrl();
 
 // Global token getter - set by ApiClientProvider
 let globalGetToken: (() => Promise<string | null>) | null = null;
+let authInitialized = false;
 
 /**
  * Set the global token getter function
@@ -38,6 +39,7 @@ let globalGetToken: (() => Promise<string | null>) | null = null;
  */
 export function setGlobalTokenGetter(getToken: () => Promise<string | null>) {
   globalGetToken = getToken;
+  authInitialized = true;
 }
 
 /**
@@ -45,14 +47,27 @@ export function setGlobalTokenGetter(getToken: () => Promise<string | null>) {
  */
 export function clearGlobalTokenGetter() {
   globalGetToken = null;
+  // Don't reset authInitialized - it's only reset on page reload
+}
+
+/**
+ * Check if auth has been initialized
+ */
+export function isAuthInitialized(): boolean {
+  return authInitialized;
 }
 
 /**
  * Get the current auth token
+ * Returns null silently during initial auth loading to avoid console spam
  */
 export async function getAuthToken(): Promise<string | null> {
   if (!globalGetToken) {
-    console.warn('[api-client] No token getter available - requests will be unauthenticated');
+    // Only warn in development and after initial load phase
+    // During initial page load, this is expected behavior
+    if (process.env.NODE_ENV === 'development' && authInitialized) {
+      console.warn('[api-client] No token getter available - requests will be unauthenticated');
+    }
     return null;
   }
   return globalGetToken();
