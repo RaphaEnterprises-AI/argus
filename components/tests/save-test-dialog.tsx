@@ -83,7 +83,8 @@ export function SaveTestDialog({
         setSelectedProjectId(projects[0].id);
       }
     }
-  }, [open, testData, projects, selectedProjectId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedProjectId intentionally omitted to prevent infinite loop
+  }, [open, testData, projects]);
 
   // Handle tag management
   const addTag = useCallback((tag: string) => {
