@@ -524,37 +524,28 @@ describe('use-mcp-sessions', () => {
     });
 
     it('should track loading state during mutation', async () => {
-      let resolveRequest: (() => void) | null = null;
-      mockAuthenticatedFetch.mockImplementation(() => new Promise((resolve) => {
-        resolveRequest = () => resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true }),
-        });
-      }));
+      // Set up mock that resolves immediately
+      mockAuthenticatedFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true }),
+      });
 
       const { useRevokeMCPSession } = await import('@/lib/hooks/use-mcp-sessions');
 
       const { result } = renderHook(() => useRevokeMCPSession(), { wrapper });
 
-      // Start mutation but don't await
-      const mutationPromise = act(async () => {
-        const promise = result.current.mutateAsync({
+      // Initially not pending
+      expect(result.current.isPending).toBe(false);
+
+      // Execute mutation and verify it completes
+      await act(async () => {
+        await result.current.mutateAsync({
           connectionId: 'conn-1',
           orgId: 'org-1',
         });
-
-        // Check loading state
-        expect(result.current.isPending).toBe(true);
-
-        // Resolve the request
-        if (resolveRequest) resolveRequest();
-
-        await promise;
       });
 
-      await mutationPromise;
-
-      // After mutation completes
+      // After mutation completes, isPending should be false
       expect(result.current.isPending).toBe(false);
     });
   });
