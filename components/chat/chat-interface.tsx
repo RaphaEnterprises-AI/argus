@@ -42,6 +42,70 @@ import {
 } from './session-screenshots-panel';
 import { SaveTestDialog } from '@/components/tests/save-test-dialog';
 
+// Type for R2 artifact references
+interface ArtifactRef {
+  artifact_id: string;
+  type: string;
+  storage: string;
+  key?: string;
+  url?: string;
+}
+
+/**
+ * Resolves a screenshot value to a displayable URL.
+ *
+ * Handles:
+ * - R2 reference IDs (screenshot_xxx) -> looks up in artifact refs or constructs R2 URL
+ * - HTTP(S) URLs -> uses directly
+ * - Data URLs (data:image/...) -> uses directly
+ * - Base64 data (long strings) -> converts to data URL
+ * - Short/invalid references -> returns placeholder
+ */
+function resolveScreenshotUrl(
+  screenshot: string,
+  artifactRefs?: ArtifactRef[]
+): string {
+  if (!screenshot) {
+    return '/placeholder-screenshot.svg';
+  }
+
+  // Already a data URL - use directly
+  if (screenshot.startsWith('data:')) {
+    return screenshot;
+  }
+
+  // HTTP(S) URL - use directly
+  if (screenshot.startsWith('http://') || screenshot.startsWith('https://')) {
+    return screenshot;
+  }
+
+  // R2 reference ID (format: screenshot_xxx_yyyymmdd_hhmmss)
+  if (screenshot.startsWith('screenshot_')) {
+    // Try to find in artifact refs first for any custom URL
+    if (artifactRefs && artifactRefs.length > 0) {
+      const ref = artifactRefs.find(r => r.artifact_id === screenshot);
+      // Check if URL is accessible (not internal R2 URL)
+      if (ref?.url && !ref.url.includes('r2.cloudflarestorage.com')) {
+        return ref.url;
+      }
+    }
+    // Use backend artifact API to serve the screenshot
+    // This endpoint fetches from R2 and serves the image with proper auth
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://argus-brain-production.up.railway.app';
+    return `${apiUrl}/api/v1/artifacts/${screenshot}/raw`;
+  }
+
+  // Assume it's base64 data - only if it's long enough to be valid base64
+  // Real base64 encoded images are thousands of characters
+  if (screenshot.length > 100) {
+    return `data:image/png;base64,${screenshot}`;
+  }
+
+  // Short string that's not a valid reference - likely an error
+  console.warn(`Invalid screenshot value: ${screenshot.substring(0, 50)}...`);
+  return '/placeholder-screenshot.svg';
+}
+
 // Lazy load heavy syntax highlighter - only loads when code blocks are rendered
 // This significantly reduces initial bundle size (SyntaxHighlighter is ~150kB)
 const SyntaxHighlighter = dynamic(
@@ -767,11 +831,22 @@ function ToolCallDisplay({ toolName, args, result, isLoading, onAction }: {
   );
 }
 
-// Screenshot gallery component
-function ScreenshotGallery({ screenshots, label }: { screenshots: string[]; label?: string }) {
+// Screenshot gallery component - handles R2 references, URLs, and base64 data
+function ScreenshotGallery({
+  screenshots,
+  label,
+  artifactRefs
+}: {
+  screenshots: string[];
+  label?: string;
+  artifactRefs?: ArtifactRef[];
+}) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   if (!screenshots || screenshots.length === 0) return null;
+
+  // Resolve all screenshot URLs using the helper function
+  const resolvedUrls = screenshots.map(s => resolveScreenshotUrl(s, artifactRefs));
 
   return (
     <div className="mt-3">
@@ -779,7 +854,7 @@ function ScreenshotGallery({ screenshots, label }: { screenshots: string[]; labe
         {label || `Screenshots (${screenshots.length})`}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2">
-        {screenshots.map((screenshot, index) => (
+        {resolvedUrls.map((resolvedUrl, index) => (
           <button
             key={index}
             onClick={() => setSelectedIndex(index)}
@@ -787,9 +862,13 @@ function ScreenshotGallery({ screenshots, label }: { screenshots: string[]; labe
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={screenshot.startsWith('data:') ? screenshot : `data:image/png;base64,${screenshot}`}
+              src={resolvedUrl}
               alt={`Step ${index + 1}`}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                // Fallback to placeholder on error
+                (e.target as HTMLImageElement).src = '/placeholder-screenshot.svg';
+              }}
             />
             <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1">
               Step {index + 1}
@@ -817,11 +896,12 @@ function ScreenshotGallery({ screenshots, label }: { screenshots: string[]; labe
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={screenshots[selectedIndex].startsWith('data:')
-                  ? screenshots[selectedIndex]
-                  : `data:image/png;base64,${screenshots[selectedIndex]}`}
+                src={resolvedUrls[selectedIndex]}
                 alt={`Step ${selectedIndex + 1}`}
                 className="max-w-full max-h-[80vh] object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/placeholder-screenshot.svg';
+                }}
               />
               <div className="absolute top-2 right-2 flex gap-2">
                 {selectedIndex > 0 && (
@@ -1039,13 +1119,16 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
     screenshots.push(data.finalScreenshot);
   }
 
+  // Extract artifact refs for R2 URL resolution
+  const artifactRefs = (data._artifact_refs as ArtifactRef[] | undefined) || [];
+
   // If we have a sessionId and the result isn't finalized yet, show live progress
   if (sessionId && !data.success && !data.error) {
     return (
       <div className="space-y-3">
         <CompactExecutionProgress sessionId={sessionId} />
         {screenshots.length > 0 && (
-          <ScreenshotGallery screenshots={screenshots} />
+          <ScreenshotGallery screenshots={screenshots} artifactRefs={artifactRefs} />
         )}
       </div>
     );
@@ -1123,7 +1206,7 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
             </details>
           )}
         </div>
-        {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} />}
+        {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} artifactRefs={artifactRefs} />}
       </div>
     );
   }
@@ -1156,7 +1239,7 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
             </div>
           )}
         </div>
-        {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} />}
+        {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} artifactRefs={artifactRefs} />}
       </div>
     );
   }
@@ -1225,7 +1308,7 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
           ))}
         </div>
         {screenshots.length > 0 && (
-          <ScreenshotGallery screenshots={screenshots} label="Test Screenshots" />
+          <ScreenshotGallery screenshots={screenshots} label="Test Screenshots" artifactRefs={artifactRefs} />
         )}
       </div>
     );
@@ -1242,7 +1325,7 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
             <span className="text-red-500">{String(data.message)}</span>
           )}
         </div>
-        <ScreenshotGallery screenshots={screenshots} label="Action Screenshot" />
+        <ScreenshotGallery screenshots={screenshots} label="Action Screenshot" artifactRefs={artifactRefs} />
       </div>
     );
   }
@@ -1253,7 +1336,7 @@ function ResultDisplay({ result, onAction }: { result: unknown; onAction?: (acti
       <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-h-40 max-w-full whitespace-pre-wrap break-all">
         {JSON.stringify(result, null, 2)}
       </pre>
-      {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} />}
+      {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} artifactRefs={artifactRefs} />}
     </div>
   );
 }
