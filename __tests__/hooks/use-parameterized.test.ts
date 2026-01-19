@@ -188,6 +188,10 @@ describe('use-parameterized', () => {
     });
     vi.clearAllMocks();
     mockFetch.mockReset();
+    // Re-setup mock implementations after clearAllMocks
+    mockChannel.on.mockReturnThis();
+    mockChannel.subscribe.mockReturnThis();
+    mockSupabase.channel.mockReturnValue(mockChannel);
   });
 
   afterEach(() => {

@@ -252,11 +252,11 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useTestLibraryStats('proj-1'), { wrapper });
 
+      // Wait for data to be populated, not just loading to finish
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.stats.totalTests).toBe(3);
       });
 
-      expect(result.current.stats.totalTests).toBe(3);
       expect(result.current.stats.byPriority).toEqual({
         high: 1,
         medium: 1,
@@ -292,12 +292,11 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useTestLibraryStats('proj-1'), { wrapper });
 
+      // Wait for data to be populated, then check recentTests count
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        // 2 tests should be within last 7 days
+        expect(result.current.stats.recentTests).toBe(2);
       });
-
-      // 2 tests should be within last 7 days
-      expect(result.current.stats.recentTests).toBe(2);
     });
 
     it('should return zero stats when no tests', async () => {
@@ -822,7 +821,8 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useSearchLibraryTests(null, 'login'), { wrapper });
 
-      expect(result.current.data).toEqual([]);
+      // Query is disabled when projectId is null, so data is undefined
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -831,7 +831,8 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useSearchLibraryTests('proj-1', 'a'), { wrapper });
 
-      expect(result.current.data).toEqual([]);
+      // Query is disabled when search is too short, so data is undefined
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -882,7 +883,8 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useTestsByTag(null, 'auth'), { wrapper });
 
-      expect(result.current.data).toEqual([]);
+      // Query is disabled when projectId is null, so data is undefined
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -891,7 +893,8 @@ describe('use-test-library', () => {
 
       const { result } = renderHook(() => useTestsByTag('proj-1', ''), { wrapper });
 
-      expect(result.current.data).toEqual([]);
+      // Query is disabled when tag is empty, so data is undefined
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 

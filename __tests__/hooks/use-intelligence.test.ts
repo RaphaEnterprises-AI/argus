@@ -156,7 +156,7 @@ describe('use-intelligence', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should fetch production events for a project', async () => {
@@ -342,7 +342,7 @@ describe('use-intelligence', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should fetch generated tests for a project', async () => {
@@ -546,7 +546,7 @@ describe('use-intelligence', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should fetch risk scores ordered by score descending', async () => {
@@ -710,7 +710,7 @@ describe('use-intelligence', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should fetch integrations filtered by quality types', async () => {
