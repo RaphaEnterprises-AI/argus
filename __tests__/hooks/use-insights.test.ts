@@ -235,7 +235,8 @@ describe('use-insights', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      // When query is disabled (projectId is null), data is undefined
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -402,7 +403,8 @@ describe('use-insights', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toBeNull();
+      // When query is disabled (projectId is null), data is undefined
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should handle empty insights', async () => {
@@ -511,7 +513,8 @@ describe('use-insights', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual({ clusters: [], totalFailures: 0 });
+      // When query is disabled (projectId is null), data is undefined
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should return empty clusters when no failed results', async () => {
@@ -602,10 +605,8 @@ describe('use-insights', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual({
-        gaps: [],
-        stats: { critical: 0, high: 0, totalSuggested: 0, overallCoverage: 0 },
-      });
+      // When query is disabled (projectId is null), data is undefined
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should handle no discovery sessions', async () => {
@@ -732,10 +733,8 @@ describe('use-insights', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual({
-        flakyTests: [],
-        stats: { count: 0, totalFailures: 0, autoFixed: 0 },
-      });
+      // When query is disabled (projectId is null), data is undefined
+      expect(result.current.data).toBeUndefined();
     });
 
     it('should return empty data when no tests', async () => {

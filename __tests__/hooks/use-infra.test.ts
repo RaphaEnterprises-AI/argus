@@ -196,11 +196,10 @@ describe('use-infra', () => {
 
       const { result } = renderHook(() => useInfraRecommendations(), { wrapper });
 
+      // Wait for the specific error message to be set
       await waitFor(() => {
-        expect(result.current.error).toBeDefined();
+        expect(result.current.error?.message).toBe('Failed to fetch recommendations');
       });
-
-      expect(result.current.error?.message).toBe('Failed to fetch recommendations');
     });
   });
 
@@ -249,11 +248,10 @@ describe('use-infra', () => {
 
       const { result } = renderHook(() => useInfraCostReport(), { wrapper });
 
+      // Wait for the specific error message to be set
       await waitFor(() => {
-        expect(result.current.error).toBeDefined();
+        expect(result.current.error?.message).toBe('Failed to fetch cost report');
       });
-
-      expect(result.current.error?.message).toBe('Failed to fetch cost report');
     });
   });
 
@@ -285,11 +283,10 @@ describe('use-infra', () => {
 
       const { result } = renderHook(() => useInfraSnapshot(), { wrapper });
 
+      // Wait for the specific error message to be set
       await waitFor(() => {
-        expect(result.current.error).toBeDefined();
+        expect(result.current.error?.message).toBe('Failed to fetch infrastructure snapshot');
       });
-
-      expect(result.current.error?.message).toBe('Failed to fetch infrastructure snapshot');
     });
   });
 
@@ -321,11 +318,10 @@ describe('use-infra', () => {
 
       const { result } = renderHook(() => useInfraSavings(), { wrapper });
 
+      // Wait for the specific error message to be set
       await waitFor(() => {
-        expect(result.current.error).toBeDefined();
+        expect(result.current.error?.message).toBe('Failed to fetch savings summary');
       });
-
-      expect(result.current.error?.message).toBe('Failed to fetch savings summary');
     });
   });
 

@@ -145,7 +145,7 @@ describe('use-reports', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toBeNull();
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -482,7 +482,7 @@ describe('use-reports', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual([]);
+      expect(result.current.data).toBeUndefined();
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
