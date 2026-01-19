@@ -65,13 +65,27 @@ const createMockChannel = () => {
   return mockChannel;
 };
 
-let mockChannel = createMockChannel();
+// Mock channel holder - use a global object to avoid hoisting issues
+// @ts-expect-error - global mock state
+global.__mockPresenceChannel = createMockChannel();
+// @ts-expect-error - global mock state
+global.__mockChannelFn = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
-    channel: vi.fn().mockImplementation(() => mockChannel),
+    // @ts-expect-error - accessing global mock state
+    channel: (...args: unknown[]) => {
+      // @ts-expect-error - accessing global mock state
+      global.__mockChannelFn(...args);
+      // @ts-expect-error - accessing global mock state
+      return global.__mockPresenceChannel;
+    },
   }),
 }));
+
+// Helper to access the channel mock
+const getChannelMock = () => global.__mockChannelFn as ReturnType<typeof vi.fn>;
+const getMockChannel = () => global.__mockPresenceChannel as ReturnType<typeof createMockChannel>;
 
 import { useUser } from '@clerk/nextjs';
 
@@ -88,9 +102,11 @@ describe('use-presence', () => {
     subscribeCallback = null;
 
     // Create fresh mock channel
-    mockChannel = createMockChannel();
+    // @ts-expect-error - global mock state
+    global.__mockPresenceChannel = createMockChannel();
 
     // Reset all mocks
+    getChannelMock().mockClear();
     mockTrack.mockClear();
     mockUnsubscribe.mockClear();
 
@@ -113,6 +129,12 @@ describe('use-presence', () => {
       writable: true,
       configurable: true,
     });
+
+    // Spy on event listeners
+    vi.spyOn(window, 'addEventListener');
+    vi.spyOn(window, 'removeEventListener');
+    vi.spyOn(document, 'addEventListener');
+    vi.spyOn(document, 'removeEventListener');
   });
 
   afterEach(() => {
@@ -174,7 +196,7 @@ describe('use-presence', () => {
 
       renderHook(() => usePresence({ channelName: 'custom-channel' }));
 
-      expect((createClient() as any).channel).toHaveBeenCalledWith(
+      expect(getChannelMock()).toHaveBeenCalledWith(
         'custom-channel',
         expect.any(Object)
       );
@@ -226,7 +248,7 @@ describe('use-presence', () => {
       });
 
       // Mock presence state with other users
-      mockChannel.presenceState.mockReturnValue({
+      getMockChannel().presenceState.mockReturnValue({
         'user-456': [
           {
             id: 'user-456',
@@ -272,7 +294,7 @@ describe('use-presence', () => {
       });
 
       // Mock presence state including current user
-      mockChannel.presenceState.mockReturnValue({
+      getMockChannel().presenceState.mockReturnValue({
         'user-123': [
           {
             id: 'user-123',
@@ -634,7 +656,6 @@ describe('use-presence', () => {
 
     it('should handle track errors gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockTrack.mockRejectedValueOnce(new Error('Track failed'));
 
       const { usePresence } = await import('@/hooks/use-presence');
 
@@ -647,6 +668,9 @@ describe('use-presence', () => {
       await waitFor(() => {
         expect(result.current.isConnected).toBe(true);
       });
+
+      // Set up rejection AFTER the initial track call succeeds
+      mockTrack.mockRejectedValueOnce(new Error('Track failed'));
 
       // Update presence which will fail
       await act(async () => {
@@ -669,7 +693,7 @@ describe('use-presence', () => {
 
       renderHook(() => useProjectPresence('proj-123'));
 
-      expect((createClient() as any).channel).toHaveBeenCalledWith(
+      expect(getChannelMock()).toHaveBeenCalledWith(
         'argus-presence:project:proj-123',
         expect.any(Object)
       );
@@ -681,7 +705,7 @@ describe('use-presence', () => {
 
       renderHook(() => useProjectPresence(null));
 
-      expect((createClient() as any).channel).toHaveBeenCalledWith(
+      expect(getChannelMock()).toHaveBeenCalledWith(
         'argus-presence',
         expect.any(Object)
       );
@@ -696,7 +720,7 @@ describe('use-presence', () => {
         subscribeCallback?.('SUBSCRIBED');
       });
 
-      mockChannel.presenceState.mockReturnValue({
+      getMockChannel().presenceState.mockReturnValue({
         'user-456': [
           {
             id: 'user-456',
@@ -730,7 +754,7 @@ describe('use-presence', () => {
         subscribeCallback?.('SUBSCRIBED');
       });
 
-      mockChannel.presenceState.mockReturnValue({
+      getMockChannel().presenceState.mockReturnValue({
         'user-456': [{ id: 'user-456', name: 'User 1', lastSeen: new Date().toISOString() }],
         'user-789': [{ id: 'user-789', name: 'User 2', lastSeen: new Date().toISOString() }],
         'user-101': [{ id: 'user-101', name: 'User 3', lastSeen: new Date().toISOString() }],
@@ -754,7 +778,7 @@ describe('use-presence', () => {
         subscribeCallback?.('SUBSCRIBED');
       });
 
-      mockChannel.presenceState.mockReturnValue({});
+      getMockChannel().presenceState.mockReturnValue({});
 
       act(() => {
         presenceHandlers.sync?.();
@@ -771,7 +795,7 @@ describe('use-presence', () => {
 
       renderHook(() => usePresenceCount('custom-presence-channel'));
 
-      expect((createClient() as any).channel).toHaveBeenCalledWith(
+      expect(getChannelMock()).toHaveBeenCalledWith(
         'custom-presence-channel',
         expect.any(Object)
       );
@@ -852,7 +876,7 @@ describe('use-presence', () => {
       });
 
       // Mock presence state without status field
-      mockChannel.presenceState.mockReturnValue({
+      getMockChannel().presenceState.mockReturnValue({
         'user-456': [
           {
             id: 'user-456',
