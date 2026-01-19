@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { AuthenticatedImage } from '@/components/ui/authenticated-image';
 
 // ============================================================================
 // TYPES
@@ -270,12 +271,12 @@ const ScreenshotThumbnail = memo(function ScreenshotThumbnail({
       onClick={onClick}
       className="relative group aspect-video rounded-md overflow-hidden border border-border/50 hover:border-primary/50 transition-colors bg-muted"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <AuthenticatedImage
         src={screenshot.src}
         alt={`${screenshot.toolLabel} screenshot`}
         className="w-full h-full object-cover"
         loading="lazy"
+        fallbackSrc="/placeholder-screenshot.svg"
       />
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
@@ -436,11 +437,11 @@ const ScreenshotViewerDialog = memo(function ScreenshotViewerDialog({
         </DialogHeader>
 
         <div className="relative flex-1 overflow-hidden bg-black/90 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AuthenticatedImage
             src={screenshot.src}
             alt={`${screenshot.toolLabel} screenshot`}
             className="max-w-full max-h-[70vh] object-contain"
+            fallbackSrc="/placeholder-screenshot.svg"
           />
 
           {/* Navigation buttons */}

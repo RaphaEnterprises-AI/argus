@@ -41,6 +41,7 @@ import {
   extractScreenshotsFromMessages,
 } from './session-screenshots-panel';
 import { SaveTestDialog } from '@/components/tests/save-test-dialog';
+import { AuthenticatedImage } from '@/components/ui/authenticated-image';
 
 // Type for R2 artifact references
 interface ArtifactRef {
@@ -860,15 +861,11 @@ function ScreenshotGallery({
             onClick={() => setSelectedIndex(index)}
             className="relative flex-shrink-0 w-24 h-16 rounded border hover:border-primary transition-colors overflow-hidden"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <AuthenticatedImage
               src={resolvedUrl}
               alt={`Step ${index + 1}`}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                // Fallback to placeholder on error
-                (e.target as HTMLImageElement).src = '/placeholder-screenshot.svg';
-              }}
+              fallbackSrc="/placeholder-screenshot.svg"
             />
             <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1">
               Step {index + 1}
@@ -894,14 +891,11 @@ function ScreenshotGallery({
               className="relative max-w-4xl max-h-[80vh] overflow-hidden rounded-lg"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <AuthenticatedImage
                 src={resolvedUrls[selectedIndex]}
                 alt={`Step ${selectedIndex + 1}`}
                 className="max-w-full max-h-[80vh] object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/placeholder-screenshot.svg';
-                }}
+                fallbackSrc="/placeholder-screenshot.svg"
               />
               <div className="absolute top-2 right-2 flex gap-2">
                 {selectedIndex > 0 && (
