@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
-import { User, Camera } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { User, Camera, Save, Loader2, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ export function ProfileSection({
     updateField,
     isDirty,
     isSaving,
+    saveSuccess,
     save,
   } = useFormState({
     initialValue: {
@@ -210,6 +211,31 @@ export function ProfileSection({
               <option value="zh">Chinese</option>
             </select>
           </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="pt-4 border-t flex justify-end">
+          <Button
+            onClick={() => save()}
+            disabled={!isDirty || isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Profile
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

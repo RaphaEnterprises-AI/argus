@@ -47,6 +47,7 @@ import {
 } from '@/lib/hooks/use-intelligence';
 import { Badge } from '@/components/ui/data-table';
 import { cn } from '@/lib/utils';
+import { NoProjectsEmptyState } from '@/components/ui/empty-state';
 
 const severityColors = {
   fatal: 'bg-red-500',
@@ -165,13 +166,7 @@ export default function IntelligencePage() {
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 lg:ml-64 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight mb-2">No Projects Yet</h2>
-            <p className="text-muted-foreground">Create a project to start using Quality Intelligence.</p>
-          </div>
+          <NoProjectsEmptyState />
         </main>
       </div>
     );

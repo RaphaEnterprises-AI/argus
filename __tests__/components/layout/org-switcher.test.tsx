@@ -7,13 +7,39 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrganizationSwitcher } from '@/components/layout/org-switcher';
+
+// Create a wrapper with QueryClientProvider for tests
+const createTestWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    );
+  };
+};
+
+// Custom render function that includes the wrapper
+const customRender = (ui: React.ReactElement, options?: Parameters<typeof render>[1]) => {
+  return render(ui, { wrapper: createTestWrapper(), ...options });
+};
 
 // Mock Next.js router
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
+    refresh: mockRefresh,
   }),
 }));
 
@@ -37,31 +63,28 @@ vi.mock('@/lib/contexts/organization-context', () => ({
 describe('OrganizationSwitcher Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock window.location.reload
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { reload: vi.fn() },
-    });
+    mockPush.mockClear();
+    mockRefresh.mockClear();
   });
 
   describe('Rendering', () => {
     it('renders current organization name', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     });
 
     it('renders organization plan badge', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       expect(screen.getByText('pro')).toBeInTheDocument();
     });
 
     it('renders chevron icon', () => {
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('renders avatar with first letter when no logo', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       expect(screen.getByText('A')).toBeInTheDocument(); // First letter of "Acme Corp"
     });
   });
@@ -69,7 +92,7 @@ describe('OrganizationSwitcher Component', () => {
   describe('Dropdown Behavior', () => {
     it('opens dropdown when clicked', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       const trigger = screen.getByRole('button');
       await user.click(trigger);
@@ -81,7 +104,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('closes dropdown when clicking outside', async () => {
       const user = userEvent.setup();
-      render(
+      customRender(
         <div>
           <OrganizationSwitcher />
           <div data-testid="outside">Outside</div>
@@ -101,7 +124,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('closes dropdown on Escape key', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       // Open dropdown
       await user.click(screen.getByRole('button'));
@@ -116,7 +139,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('rotates chevron when open', async () => {
       const user = userEvent.setup();
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
 
       const chevron = container.querySelector('.transition-transform');
       expect(chevron).not.toHaveClass('rotate-180');
@@ -132,7 +155,7 @@ describe('OrganizationSwitcher Component', () => {
   describe('Organization Selection', () => {
     it('shows check mark for current organization', async () => {
       const user = userEvent.setup();
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -143,7 +166,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('calls switchOrganization when selecting different org', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -156,9 +179,9 @@ describe('OrganizationSwitcher Component', () => {
       expect(mockSwitchOrganization).toHaveBeenCalledWith('org-2');
     });
 
-    it('reloads page after switching organization', async () => {
+    it('refreshes router after switching organization', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -167,14 +190,14 @@ describe('OrganizationSwitcher Component', () => {
         await user.click(betaButton);
       }
 
-      expect(window.location.reload).toHaveBeenCalled();
+      expect(mockRefresh).toHaveBeenCalled();
     });
   });
 
   describe('Create Organization', () => {
     it('renders create organization button', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
       expect(screen.getByText('Create new organization')).toBeInTheDocument();
@@ -182,7 +205,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('navigates to create org page when clicked', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
       await user.click(screen.getByText('Create new organization'));
@@ -194,7 +217,7 @@ describe('OrganizationSwitcher Component', () => {
   describe('Settings', () => {
     it('renders organization settings button', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
       expect(screen.getByText('Organization settings')).toBeInTheDocument();
@@ -202,7 +225,7 @@ describe('OrganizationSwitcher Component', () => {
 
     it('navigates to settings when clicked', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
       await user.click(screen.getByText('Organization settings'));
@@ -214,7 +237,7 @@ describe('OrganizationSwitcher Component', () => {
   describe('Plan Badges', () => {
     it('shows different styling for enterprise plan', async () => {
       const user = userEvent.setup();
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -223,14 +246,14 @@ describe('OrganizationSwitcher Component', () => {
     });
 
     it('shows different styling for pro plan', async () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       const proBadge = screen.getByText('pro');
       expect(proBadge).toHaveClass('bg-cyan-500/10', 'text-cyan-500');
     });
 
     it('shows different styling for free plan', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -241,13 +264,13 @@ describe('OrganizationSwitcher Component', () => {
 
   describe('Organization Avatar', () => {
     it('shows first letter avatar when no logo', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       expect(screen.getByText('A')).toBeInTheDocument();
     });
 
     it('shows logo image when logo_url is provided', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -257,7 +280,7 @@ describe('OrganizationSwitcher Component', () => {
     });
 
     it('avatar has correct styling', () => {
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
       const avatar = container.querySelector('.rounded-lg.bg-primary\\/10');
       expect(avatar).toBeInTheDocument();
     });
@@ -296,20 +319,20 @@ describe('OrganizationSwitcher Component', () => {
 
   describe('Styling', () => {
     it('has correct container styling', () => {
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
       const wrapper = container.querySelector('.px-3.py-3.border-b');
       expect(wrapper).toBeInTheDocument();
     });
 
     it('trigger button has hover state', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       const button = screen.getByRole('button');
       expect(button).toHaveClass('hover:bg-muted/50');
     });
 
     it('dropdown has proper z-index', async () => {
       const user = userEvent.setup();
-      const { container } = render(<OrganizationSwitcher />);
+      const { container } = customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -320,13 +343,13 @@ describe('OrganizationSwitcher Component', () => {
 
   describe('Accessibility', () => {
     it('trigger is a button', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
     it('dropdown items are buttons', async () => {
       const user = userEvent.setup();
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
 
       await user.click(screen.getByRole('button'));
 
@@ -336,7 +359,7 @@ describe('OrganizationSwitcher Component', () => {
     });
 
     it('truncates long organization names', () => {
-      render(<OrganizationSwitcher />);
+      customRender(<OrganizationSwitcher />);
       const name = screen.getByText('Acme Corp');
       expect(name).toHaveClass('truncate');
     });

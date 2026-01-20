@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Test } from '@/lib/supabase/types';
+import { WORKER_URL } from '@/lib/config/api-endpoints';
 
 interface StepResult {
   instruction: string;
@@ -38,8 +39,6 @@ interface ExecutionState {
   startTime?: number;
   endTime?: number;
 }
-
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 interface LiveExecutionModalProps {
   test: Test | null;

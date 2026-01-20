@@ -14,18 +14,13 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
+import { WORKER_URL, BACKEND_URL } from '@/lib/config/api-endpoints';
 
 // Use Edge runtime to avoid serverless function size limits
 export const runtime = 'edge';
 
 // Allow streaming responses up to 5 minutes for long-running tests
 export const maxDuration = 300;
-
-// Argus Core Backend (Python - LangGraph Orchestrator)
-const BACKEND_URL = process.env.ARGUS_BACKEND_URL || 'https://argus-brain-production.up.railway.app';
-
-// Cloudflare Worker API URL (Browser Automation)
-const WORKER_URL = process.env.E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 // Helper to create fetch with timeout and retry logic
 async function fetchWithTimeout(

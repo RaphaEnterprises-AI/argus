@@ -63,6 +63,13 @@ vi.mock('@/lib/contexts/organization-context', () => ({
   ),
 }));
 
+// Mock the SessionTimeoutProvider
+vi.mock('@/components/providers/session-timeout-provider', () => ({
+  SessionTimeoutProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="session-timeout-provider">{children}</div>
+  ),
+}));
+
 // Import after mocks
 import { Providers, useReducedMotion } from '@/lib/providers';
 

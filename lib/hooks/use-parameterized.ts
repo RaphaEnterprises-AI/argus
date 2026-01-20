@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { Json } from '@/lib/supabase/types';
+import { WORKER_URL } from '@/lib/config/api-endpoints';
 
 // ============================================
 // TYPES
@@ -447,8 +448,6 @@ export function useIterationResults(resultId: string | null) {
 // ============================================
 // RUN PARAMETERIZED TEST
 // ============================================
-
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 export function useRunParameterizedTest() {
   const supabase = getSupabaseClient();

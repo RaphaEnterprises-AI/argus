@@ -2,13 +2,28 @@
 
 import Script from 'next/script';
 
+// Validation patterns to prevent XSS in inline scripts
+const GA_ID_PATTERN = /^G-[A-Z0-9]{10,12}$/;
+const CLARITY_ID_PATTERN = /^[a-z0-9]{10,12}$/i;
+
+function isValidGAId(id: string): boolean {
+  return GA_ID_PATTERN.test(id);
+}
+
+function isValidClarityId(id: string): boolean {
+  return CLARITY_ID_PATTERN.test(id);
+}
+
 interface GoogleAnalyticsProps {
   GA_MEASUREMENT_ID?: string;
 }
 
 export function GoogleAnalytics({ GA_MEASUREMENT_ID }: GoogleAnalyticsProps) {
-  // Only load if GA ID is provided
-  if (!GA_MEASUREMENT_ID) {
+  // Only load if GA ID is provided and valid (XSS prevention)
+  if (!GA_MEASUREMENT_ID || !isValidGAId(GA_MEASUREMENT_ID)) {
+    if (GA_MEASUREMENT_ID && !isValidGAId(GA_MEASUREMENT_ID)) {
+      console.warn('[GoogleAnalytics] Invalid GA_MEASUREMENT_ID format');
+    }
     return null;
   }
 
@@ -39,7 +54,11 @@ export function GoogleAnalytics({ GA_MEASUREMENT_ID }: GoogleAnalyticsProps) {
 }
 
 export function MSClarity({ CLARITY_PROJECT_ID }: { CLARITY_PROJECT_ID?: string }) {
-  if (!CLARITY_PROJECT_ID) {
+  // Only load if Clarity ID is provided and valid (XSS prevention)
+  if (!CLARITY_PROJECT_ID || !isValidClarityId(CLARITY_PROJECT_ID)) {
+    if (CLARITY_PROJECT_ID && !isValidClarityId(CLARITY_PROJECT_ID)) {
+      console.warn('[MSClarity] Invalid CLARITY_PROJECT_ID format');
+    }
     return null;
   }
 

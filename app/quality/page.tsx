@@ -18,6 +18,7 @@ import { useLatestAudit, useQualityAudits, useStartQualityAudit } from '@/lib/ho
 import { Badge } from '@/components/ui/data-table';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { NoProjectsEmptyState } from '@/components/ui/empty-state';
 
 function ScoreBar({ label, score, color }: { label: string; score: number | null; color: string }) {
   return (
@@ -72,13 +73,7 @@ export default function QualityPage() {
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 lg:ml-64 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <Shield className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight mb-2">No Projects Yet</h2>
-            <p className="text-muted-foreground">Create a project to start quality audits.</p>
-          </div>
+          <NoProjectsEmptyState />
         </main>
       </div>
     );

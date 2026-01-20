@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback } from 'react';
-import { Settings, Clock } from 'lucide-react';
+import { Settings, Clock, Save, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner, ErrorMessage, ToggleRow } from './settings-ui';
 import { useFormState } from '@/lib/hooks/use-form-state';
@@ -36,6 +37,9 @@ export function TestDefaultsSection({
     value: localSettings,
     updateField,
     isDirty,
+    isSaving,
+    saveSuccess,
+    save,
   } = useFormState({
     initialValue: {
       default_browser: settings?.default_browser || 'chromium',
@@ -178,6 +182,31 @@ export function TestDefaultsSection({
             checked={localSettings.video_recording}
             onChange={handleToggle('video_recording')}
           />
+        </div>
+
+        {/* Save Button */}
+        <div className="pt-4 border-t flex justify-end">
+          <Button
+            onClick={() => save()}
+            disabled={!isDirty || isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Defaults
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

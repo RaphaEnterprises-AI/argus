@@ -78,6 +78,7 @@ import { useCreateTest } from '@/lib/hooks/use-tests';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { WORKER_URL } from '@/lib/config/api-endpoints';
 import type { DiscoveredFlow, DiscoveredPage, DiscoverySession } from '@/lib/supabase/types';
 
 // Import local components
@@ -122,8 +123,6 @@ interface AIInsight {
 // ============================================
 // Constants
 // ============================================
-
-const WORKER_URL = process.env.NEXT_PUBLIC_E2E_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 const DISCOVERY_MODES: { value: DiscoveryMode; label: string; description: string }[] = [
   { value: 'quick', label: 'Quick Scan', description: 'Fast surface-level analysis (5-10 pages)' },

@@ -40,6 +40,7 @@ import { ExecutionPreview } from '@/components/parameterized/ExecutionPreview';
 import { ResultsView } from '@/components/parameterized/ResultsView';
 import { cn } from '@/lib/utils';
 import type { ParameterizedTest, ParameterizedResult } from '@/lib/hooks/use-parameterized';
+import { NoProjectsEmptyState } from '@/components/ui/empty-state';
 
 // Data source type icons
 const DataSourceIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -330,18 +331,7 @@ export default function ParameterizedTestsPage() {
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 lg:ml-64 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <Database className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight mb-2">No Projects Found</h2>
-            <p className="text-muted-foreground mb-6">
-              Create a project first to start building parameterized tests.
-            </p>
-            <Button onClick={() => window.location.href = '/projects'}>
-              Go to Projects
-            </Button>
-          </div>
+          <NoProjectsEmptyState onCreateProject={() => window.location.href = '/projects'} />
         </main>
       </div>
     );

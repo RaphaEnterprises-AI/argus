@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Save, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner, ErrorMessage, ToggleRow } from './settings-ui';
 import { useFormState } from '@/lib/hooks/use-form-state';
@@ -34,6 +35,9 @@ export function NotificationsSection({
     value: localSettings,
     updateField,
     isDirty,
+    isSaving,
+    saveSuccess,
+    save,
   } = useFormState({
     initialValue: {
       email_notifications: settings?.email_notifications ?? true,
@@ -155,6 +159,31 @@ export function NotificationsSection({
             max="100"
             className="w-24"
           />
+        </div>
+
+        {/* Save Button */}
+        <div className="pt-4 border-t flex justify-end">
+          <Button
+            onClick={() => save()}
+            disabled={!isDirty || isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Notifications
+              </>
+            )}
+          </Button>
         </div>
       </CardContent>
     </Card>

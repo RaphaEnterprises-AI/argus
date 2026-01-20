@@ -11,26 +11,32 @@
  * - useLiveSessionManager
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock Supabase client
+// Mock Supabase client - must be defined before vi.mock
 const mockChannel = {
   on: vi.fn().mockReturnThis(),
-  subscribe: vi.fn(),
+  subscribe: vi.fn().mockReturnThis(),
 };
 
 const mockSupabase = {
   from: vi.fn(),
   channel: vi.fn(() => mockChannel),
-  removeChannel: vi.fn(),
+  removeChannel: vi.fn().mockResolvedValue(undefined),
 };
 
+// Mock the module at the top level
 vi.mock('@/lib/supabase/client', () => ({
   getSupabaseClient: () => mockSupabase,
 }));
+
+// Reset modules before all tests to ensure clean state
+beforeAll(() => {
+  vi.resetModules();
+});
 
 // Mock types for tests
 import type { ActivityLog, LiveSession } from '@/lib/hooks/use-live-session';
@@ -96,30 +102,50 @@ describe('use-live-session', () => {
   };
 
   beforeEach(() => {
+    // Create a new QueryClient for each test with retry disabled
     queryClient = new QueryClient({
       defaultOptions: {
         queries: {
+          retry: false,
+          gcTime: 0, // Disable garbage collection time
+        },
+        mutations: {
           retry: false,
         },
       },
     });
 
-    // Reset channel mock
+    // Reset and configure channel mock
+    mockChannel.on.mockClear();
     mockChannel.on.mockReturnThis();
-    mockChannel.subscribe.mockReset();
-    mockSupabase.removeChannel.mockReset();
+    mockChannel.subscribe.mockClear();
+    mockChannel.subscribe.mockReturnThis();
+
+    // Reset supabase mocks
+    mockSupabase.removeChannel.mockClear();
+    mockSupabase.removeChannel.mockResolvedValue(undefined);
+    mockSupabase.channel.mockClear();
     mockSupabase.channel.mockReturnValue(mockChannel);
 
     // Reset from() mock and set up default chain that returns empty results
     // This prevents "Cannot read properties of undefined (reading 'select')" errors
     const defaultChain = createMockChain([], null);
-    mockSupabase.from.mockReset();
+    mockSupabase.from.mockClear();
     mockSupabase.from.mockReturnValue(defaultChain);
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  afterEach(async () => {
+    // Clean up React Testing Library
+    cleanup();
+
+    // Clear all queries and cancel any pending operations
     queryClient.clear();
+
+    // Wait for any pending microtasks to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Clear all mock call history but keep implementations
+    vi.clearAllMocks();
   });
 
   describe('useActiveSessions', () => {

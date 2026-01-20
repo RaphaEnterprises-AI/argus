@@ -2,8 +2,9 @@
  * Test the main Chat API endpoint with tools
  */
 
+import { WORKER_URL } from '../lib/config/api-endpoints';
+
 const DASHBOARD_URL = 'http://localhost:3000';
-const WORKER_URL = 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 interface TestResult {
   name: string;
