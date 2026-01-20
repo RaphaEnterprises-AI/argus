@@ -62,6 +62,9 @@ interface ArtifactRef {
  * - Base64 data (long strings) -> converts to data URL
  * - Short/invalid references -> returns placeholder
  */
+// Worker URL for public screenshot access (no auth required)
+const WORKER_SCREENSHOT_URL = 'https://argus-api.samuelvinay-kumar.workers.dev/screenshots';
+
 function resolveScreenshotUrl(
   screenshot: string,
   artifactRefs?: ArtifactRef[]
@@ -75,8 +78,17 @@ function resolveScreenshotUrl(
     return screenshot;
   }
 
-  // HTTP(S) URL - use directly
+  // HTTP(S) URL - check for broken R2 URLs and transform
   if (screenshot.startsWith('http://') || screenshot.startsWith('https://')) {
+    // Fix broken R2 URLs by routing through Worker proxy
+    // Old format: https://argus-artifacts.r2.cloudflarestorage.com/screenshots/screenshot_xxx.png
+    // New format: https://argus-api.samuelvinay-kumar.workers.dev/screenshots/screenshot_xxx
+    if (screenshot.includes('r2.cloudflarestorage.com')) {
+      const match = screenshot.match(/screenshots\/([^.]+)(?:\.png)?$/);
+      if (match) {
+        return `${WORKER_SCREENSHOT_URL}/${match[1]}`;
+      }
+    }
     return screenshot;
   }
 
@@ -90,10 +102,8 @@ function resolveScreenshotUrl(
         return ref.url;
       }
     }
-    // Use backend artifact API to serve the screenshot
-    // This endpoint fetches from R2 and serves the image with proper auth
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://argus-brain-production.up.railway.app';
-    return `${apiUrl}/api/v1/artifacts/${screenshot}/raw`;
+    // Use Worker proxy for public screenshot access (no auth required)
+    return `${WORKER_SCREENSHOT_URL}/${screenshot}`;
   }
 
   // Assume it's base64 data - only if it's long enough to be valid base64
