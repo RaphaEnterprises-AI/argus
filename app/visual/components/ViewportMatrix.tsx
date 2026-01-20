@@ -16,6 +16,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveScreenshotUrl } from '@/lib/screenshot-utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -162,7 +163,7 @@ const ViewportCell = memo(function ViewportCell({
       <div className="aspect-[16/10] relative overflow-hidden bg-muted">
         {snapshot.screenshotUrl ? (
           <img
-            src={snapshot.screenshotUrl}
+            src={resolveScreenshotUrl(snapshot.screenshotUrl)}
             alt={`${vpConfig.label} viewport screenshot`}
             className="w-full h-full object-cover object-top"
           />
@@ -349,7 +350,7 @@ const ViewportDetailDialog = memo(function ViewportDetailDialog({
           <div className="relative rounded-lg overflow-hidden border bg-muted">
             {snapshot.screenshotUrl ? (
               <img
-                src={snapshot.screenshotUrl}
+                src={resolveScreenshotUrl(snapshot.screenshotUrl)}
                 alt={`${vpConfig.label} viewport full screenshot`}
                 className="w-full h-auto"
               />

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveScreenshotUrl } from '@/lib/screenshot-utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -205,7 +206,7 @@ const BrowserCell = memo(function BrowserCell({
       >
         {snapshot.screenshotUrl ? (
           <img
-            src={snapshot.screenshotUrl}
+            src={resolveScreenshotUrl(snapshot.screenshotUrl)}
             alt={`${brConfig.label} browser screenshot`}
             className="w-full h-full object-cover object-top"
           />
@@ -455,7 +456,7 @@ const BrowserDetailDialog = memo(function BrowserDetailDialog({
                 <div className="relative rounded-lg overflow-hidden border bg-muted">
                   {baselineSnapshot.screenshotUrl ? (
                     <img
-                      src={baselineSnapshot.screenshotUrl}
+                      src={resolveScreenshotUrl(baselineSnapshot.screenshotUrl)}
                       alt="Baseline screenshot"
                       className="w-full h-auto"
                     />
@@ -478,7 +479,7 @@ const BrowserDetailDialog = memo(function BrowserDetailDialog({
                 <div className="relative rounded-lg overflow-hidden border bg-muted">
                   {snapshot.screenshotUrl ? (
                     <img
-                      src={snapshot.screenshotUrl}
+                      src={resolveScreenshotUrl(snapshot.screenshotUrl)}
                       alt={`${brConfig.label} screenshot`}
                       className="w-full h-auto"
                     />
@@ -517,7 +518,7 @@ const BrowserDetailDialog = memo(function BrowserDetailDialog({
             <div className="relative rounded-lg overflow-hidden border bg-muted">
               {snapshot.screenshotUrl ? (
                 <img
-                  src={snapshot.screenshotUrl}
+                  src={resolveScreenshotUrl(snapshot.screenshotUrl)}
                   alt={`${brConfig.label} full screenshot`}
                   className="w-full h-auto"
                 />
