@@ -91,13 +91,41 @@ function generateScreenshotId(src: string): string {
   return src;
 }
 
+/**
+ * Transform screenshot URLs to ensure they're accessible.
+ * Handles:
+ * - base64 data URLs (pass through)
+ * - Working URLs (pass through)
+ * - Broken R2 URLs (transform to Worker proxy)
+ * - Raw base64 (convert to data URL)
+ * - Artifact IDs (convert to Worker URL)
+ */
 function formatScreenshotSrc(src: string): string {
   if (src.startsWith('data:')) {
     return src;
   }
+
+  // Fix broken R2 URLs by routing through Worker proxy
+  // Old format: https://argus-artifacts.r2.cloudflarestorage.com/screenshots/screenshot_xxx.png
+  // New format: https://argus-api.samuelvinay-kumar.workers.dev/screenshots/screenshot_xxx
+  if (src.includes('r2.cloudflarestorage.com')) {
+    // Extract artifact ID from the URL
+    const match = src.match(/screenshots\/([^.]+)(?:\.png)?$/);
+    if (match) {
+      const artifactId = match[1];
+      return `https://argus-api.samuelvinay-kumar.workers.dev/screenshots/${artifactId}`;
+    }
+  }
+
   if (src.startsWith('http')) {
     return src;
   }
+
+  // Check if it's an artifact ID (screenshot_xxx format)
+  if (src.startsWith('screenshot_')) {
+    return `https://argus-api.samuelvinay-kumar.workers.dev/screenshots/${src}`;
+  }
+
   // Assume it's raw base64
   return `data:image/png;base64,${src}`;
 }
