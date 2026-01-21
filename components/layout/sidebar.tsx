@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserButton, useClerk } from '@clerk/nextjs';
 import {
@@ -173,10 +173,19 @@ function NavItem({
   isActive: boolean;
   onClick?: () => void;
 }) {
+  const router = useRouter();
+
+  // Handle click with explicit navigation to avoid React 18 transition delays
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClick?.();
+    router.push(item.href);
+  };
+
   return (
     <Link
       href={item.href}
-      onClick={onClick}
+      onClick={handleClick}
       data-active={isActive}
       className={cn(
         'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
