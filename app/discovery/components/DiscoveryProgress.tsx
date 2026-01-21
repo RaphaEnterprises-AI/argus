@@ -259,6 +259,7 @@ function DiscoveryProgress({
   const retryCountRef = useRef(0);
   const maxRetries = 3;
   const activityIdRef = useRef(0);
+  const isCompletedRef = useRef(false); // Track if session has reached terminal state
 
   const addActivityLog = useCallback((message: string, type: ActivityLogEntry['type'] = 'info') => {
     const entry: ActivityLogEntry = {
@@ -285,6 +286,12 @@ function DiscoveryProgress({
       // Close existing connection
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+      }
+
+      // Reset completed flag for new connection attempt
+      // (but don't reset if we're reconnecting after a terminal state)
+      if (retryCountRef.current === 0) {
+        isCompletedRef.current = false;
       }
 
       // Get auth token for SSE connection
@@ -415,6 +422,9 @@ function DiscoveryProgress({
         const data = parseEventData(event);
         if (!data) return;
 
+        // Mark as completed to prevent reconnection loop
+        isCompletedRef.current = true;
+
         setStatus((prev) => prev ? {
           ...prev,
           status: 'completed',
@@ -424,6 +434,9 @@ function DiscoveryProgress({
         } : null);
         setShowCelebration(true);
         addActivityLog('Discovery completed successfully!', 'success');
+
+        // Close the connection since we're done
+        eventSource.close();
 
         if (onComplete && data.result) {
           onComplete(data.result as DiscoveryResult);
@@ -436,6 +449,9 @@ function DiscoveryProgress({
         const data = parseEventData(event);
         if (!data) return;
 
+        // Mark as completed to prevent reconnection loop
+        isCompletedRef.current = true;
+
         const errorMsg = (data.error as string) || 'Discovery failed';
         setStatus((prev) => prev ? {
           ...prev,
@@ -443,6 +459,10 @@ function DiscoveryProgress({
           errors: [...prev.errors, errorMsg],
         } : null);
         addActivityLog(errorMsg, 'error');
+
+        // Close the connection since we're done
+        eventSource.close();
+
         onError?.(errorMsg);
       });
 
@@ -451,11 +471,17 @@ function DiscoveryProgress({
         const data = parseEventData(event);
         if (!data) return;
 
+        // Mark as completed to prevent reconnection loop
+        isCompletedRef.current = true;
+
         setStatus((prev) => prev ? {
           ...prev,
           status: 'cancelled',
         } : null);
         addActivityLog('Discovery was cancelled', 'warning');
+
+        // Close the connection since we're done
+        eventSource.close();
       });
 
       // Handle 'paused' event
@@ -488,6 +514,12 @@ function DiscoveryProgress({
 
       eventSource.onerror = () => {
         eventSource.close();
+
+        // Don't retry if session has reached a terminal state (complete/failed/cancelled)
+        if (isCompletedRef.current) {
+          setConnectionError(null);
+          return;
+        }
 
         if (retryCountRef.current < maxRetries) {
           retryCountRef.current++;
