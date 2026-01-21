@@ -316,122 +316,113 @@ export function CommandPalette() {
     item.action();
   }, []);
 
+  // Only render dialog when open to prevent Radix focus trap from blocking clicks
+  if (!open) {
+    return null;
+  }
+
   return (
-    <>
-      {/* Command Dialog - trigger is now in the sidebar */}
-      <Command.Dialog
-        open={open}
-        onOpenChange={setOpen}
-        label="Command Palette"
-        className={cn(
-          'fixed inset-0 z-50',
-          open ? 'pointer-events-auto' : 'pointer-events-none'
-        )}
-      >
-        {/* Backdrop */}
-        <div
-          className={cn(
-            'fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-200',
-            open ? 'opacity-100' : 'opacity-0'
-          )}
-          onClick={() => setOpen(false)}
-        />
+    <Command.Dialog
+      open={open}
+      onOpenChange={setOpen}
+      label="Command Palette"
+      className="fixed inset-0 z-50"
+    >
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+        onClick={() => setOpen(false)}
+      />
 
-        {/* Dialog */}
-        <div className="fixed left-1/2 top-[20%] -translate-x-1/2 w-full max-w-xl">
-          <div
-            className={cn(
-              'rounded-xl border bg-card shadow-2xl overflow-hidden transition-all duration-200',
-              open ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            )}
-          >
-            {/* Input */}
-            <div className="flex items-center border-b px-4">
-              <Search className="h-4 w-4 text-muted-foreground mr-2" />
-              <Command.Input
-                value={search}
-                onValueChange={setSearch}
-                placeholder="Type a command or search..."
-                className="flex-1 h-12 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
-              />
-              <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                ESC
-              </kbd>
-            </div>
+      {/* Dialog */}
+      <div className="fixed left-1/2 top-[20%] -translate-x-1/2 w-full max-w-xl">
+        <div className="rounded-xl border bg-card shadow-2xl overflow-hidden">
+          {/* Input */}
+          <div className="flex items-center border-b px-4">
+            <Search className="h-4 w-4 text-muted-foreground mr-2" />
+            <Command.Input
+              value={search}
+              onValueChange={setSearch}
+              placeholder="Type a command or search..."
+              className="flex-1 h-12 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+            />
+            <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              ESC
+            </kbd>
+          </div>
 
-            {/* Results */}
-            <Command.List className="max-h-80 overflow-y-auto p-2">
-              <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
-                No results found.
-              </Command.Empty>
+          {/* Results */}
+          <Command.List className="max-h-80 overflow-y-auto p-2">
+            <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
+              No results found.
+            </Command.Empty>
 
-              {/* Actions Group */}
-              <Command.Group heading="Quick Actions" className="px-2">
-                {actionItems.map((item) => (
-                  <Command.Item
-                    key={item.id}
-                    value={`${item.name} ${item.keywords?.join(' ')}`}
-                    onSelect={() => handleSelect(item)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-muted aria-selected:bg-muted transition-colors"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md border bg-background">
-                      {item.icon}
-                    </span>
-                    <span className="flex-1">{item.name}</span>
-                    {item.shortcut && (
-                      <div className="flex items-center gap-1">
-                        {item.shortcut.map((key, i) => (
-                          <kbd
-                            key={i}
-                            className="h-5 px-1.5 inline-flex items-center rounded border bg-muted font-mono text-[10px] font-medium text-muted-foreground"
-                          >
-                            {key}
-                          </kbd>
-                        ))}
-                      </div>
-                    )}
-                  </Command.Item>
-                ))}
-              </Command.Group>
+            {/* Actions Group */}
+            <Command.Group heading="Quick Actions" className="px-2">
+              {actionItems.map((item) => (
+                <Command.Item
+                  key={item.id}
+                  value={`${item.name} ${item.keywords?.join(' ')}`}
+                  onSelect={() => handleSelect(item)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-muted aria-selected:bg-muted transition-colors"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md border bg-background">
+                    {item.icon}
+                  </span>
+                  <span className="flex-1">{item.name}</span>
+                  {item.shortcut && (
+                    <div className="flex items-center gap-1">
+                      {item.shortcut.map((key, i) => (
+                        <kbd
+                          key={i}
+                          className="h-5 px-1.5 inline-flex items-center rounded border bg-muted font-mono text-[10px] font-medium text-muted-foreground"
+                        >
+                          {key}
+                        </kbd>
+                      ))}
+                    </div>
+                  )}
+                </Command.Item>
+              ))}
+            </Command.Group>
 
-              {/* Navigation Group */}
-              <Command.Group heading="Navigation" className="px-2 mt-2">
-                {navigationItems.map((item) => (
-                  <Command.Item
-                    key={item.id}
-                    value={`${item.name} ${item.keywords?.join(' ')}`}
-                    onSelect={() => handleSelect(item)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-muted aria-selected:bg-muted transition-colors"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md border bg-background">
-                      {item.icon}
-                    </span>
-                    <span className="flex-1">{item.name}</span>
-                  </Command.Item>
-                ))}
-              </Command.Group>
-            </Command.List>
+            {/* Navigation Group */}
+            <Command.Group heading="Navigation" className="px-2 mt-2">
+              {navigationItems.map((item) => (
+                <Command.Item
+                  key={item.id}
+                  value={`${item.name} ${item.keywords?.join(' ')}`}
+                  onSelect={() => handleSelect(item)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:bg-muted aria-selected:bg-muted transition-colors"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md border bg-background">
+                    {item.icon}
+                  </span>
+                  <span className="flex-1">{item.name}</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          </Command.List>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">↑↓</kbd>
-                  Navigate
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">↵</kbd>
-                  Select
-                </span>
-              </div>
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
-                <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">ESC</kbd>
-                Close
+                <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">↑↓</kbd>
+                Navigate
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">↵</kbd>
+                Select
               </span>
             </div>
+            <span className="flex items-center gap-1">
+              <kbd className="h-4 px-1 rounded border bg-muted font-mono text-[10px]">ESC</kbd>
+              Close
+            </span>
           </div>
         </div>
-      </Command.Dialog>
-    </>
+      </div>
+    </Command.Dialog>
   );
 }
