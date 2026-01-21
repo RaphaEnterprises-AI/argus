@@ -1430,11 +1430,19 @@ export default function DiscoveryPage() {
             <DiscoveryProgress
               sessionId={currentSessionId || discoveryData?.session?.id || ''}
               onComplete={(result) => {
+                // Invalidate ALL discovery-related queries to refresh data from database
+                queryClient.invalidateQueries({ queryKey: ['latest-discovery', currentProject] });
+                queryClient.invalidateQueries({ queryKey: ['discovery-sessions', currentProject] });
+                queryClient.invalidateQueries({ queryKey: ['discovery-history', currentProject] });
+                queryClient.invalidateQueries({ queryKey: ['discovery-session'] }); // All sessions
+
+                // Force refetch to ensure fresh data
+                queryClient.refetchQueries({ queryKey: ['latest-discovery', currentProject] });
+
                 // Delay clearing the session ID to allow UI to show completion state
                 setTimeout(() => {
                   setCurrentSessionId(null);
                 }, 3000); // Keep visible for 3 seconds after completion
-                queryClient.invalidateQueries({ queryKey: ['latest-discovery', currentProject] });
               }}
               onError={(error) => {
                 console.error('Discovery error:', error);

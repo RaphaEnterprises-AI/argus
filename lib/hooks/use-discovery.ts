@@ -23,8 +23,8 @@ export function useDiscoverySessions(projectId: string | null) {
       return data as DiscoverySession[];
     },
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 10 * 1000, // 10 seconds - refresh frequently to pick up new sessions
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     placeholderData: [], // Prevent loading state flash
   });
 }
@@ -47,8 +47,8 @@ export function useDiscoveredPages(sessionId: string | null) {
       return data as DiscoveredPage[];
     },
     enabled: !!sessionId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - discovery results don't change
-    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    staleTime: 15 * 1000, // 15 seconds - discovery pages may update during crawl
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     placeholderData: [], // Prevent loading state flash
   });
 }
@@ -71,8 +71,8 @@ export function useDiscoveredFlows(sessionId: string | null) {
       return data as DiscoveredFlow[];
     },
     enabled: !!sessionId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - discovery results don't change
-    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
+    staleTime: 15 * 1000, // 15 seconds - flows may be added during crawl
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     placeholderData: [], // Prevent loading state flash
   });
 }
@@ -122,8 +122,8 @@ export function useLatestDiscoveryData(projectId: string | null) {
       };
     },
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - discovery data changes less frequently
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 10 * 1000, // 10 seconds - refresh to show latest discovery results
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     placeholderData: null, // Prevent loading state flash
   });
 }
