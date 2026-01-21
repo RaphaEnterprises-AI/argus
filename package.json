@@ -39,6 +39,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.0",
+    "@sentry/nextjs": "^10.36.0",
     "@splinetool/react-spline": "^4.1.0",
     "@splinetool/runtime": "^1.12.32",
     "@supabase/ssr": "^0.8.0",
