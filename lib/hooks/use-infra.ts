@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { organizationScopedFetch } from '@/lib/api';
+import { useAuthApi } from './use-auth-api';
 import type {
   CostOverviewData,
   Recommendation,
@@ -10,9 +10,6 @@ import type {
   BrowserNodeData,
   SeleniumData,
 } from '@/components/infra';
-
-// Note: organizationScopedFetch handles the backend URL automatically via lib/auth-api.ts
-// DO NOT hardcode localhost URLs here - use relative paths only
 
 // Types for API responses
 interface RecommendationsResponse {
@@ -60,65 +57,24 @@ interface ApplyRecommendationResponse {
   error?: string;
 }
 
-// Fetch functions
-async function fetchRecommendations(): Promise<RecommendationsResponse> {
-  const response = await organizationScopedFetch('/api/v1/infra/recommendations');
-  if (!response.ok) {
-    throw new Error('Failed to fetch recommendations');
-  }
-  return response.json();
-}
-
-async function fetchCostReport(days: number): Promise<CostReportResponse> {
-  const response = await organizationScopedFetch(
-    `/api/v1/infra/cost-report?days=${days}`
-  );
-  if (!response.ok) {
-    throw new Error('Failed to fetch cost report');
-  }
-  return response.json();
-}
-
-async function fetchInfraSnapshot(): Promise<InfraSnapshotResponse> {
-  const response = await organizationScopedFetch('/api/v1/infra/snapshot');
-  if (!response.ok) {
-    throw new Error('Failed to fetch infrastructure snapshot');
-  }
-  return response.json();
-}
-
-async function fetchSavingsSummary(): Promise<SavingsSummaryResponse> {
-  const response = await organizationScopedFetch('/api/v1/infra/savings-summary');
-  if (!response.ok) {
-    throw new Error('Failed to fetch savings summary');
-  }
-  return response.json();
-}
-
-async function applyRecommendation(id: string, auto: boolean): Promise<ApplyRecommendationResponse> {
-  const response = await organizationScopedFetch(
-    `/api/v1/infra/recommendations/${id}/apply`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ auto }),
-    }
-  );
-  if (!response.ok) {
-    throw new Error('Failed to apply recommendation');
-  }
-  return response.json();
-}
-
 // Hooks
 
 /**
  * Hook to fetch AI-generated infrastructure recommendations
  */
 export function useInfraRecommendations() {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
   return useQuery({
     queryKey: ['infra', 'recommendations'],
-    queryFn: fetchRecommendations,
+    queryFn: async () => {
+      const response = await fetchJson<RecommendationsResponse>('/api/v1/infra/recommendations');
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: isLoaded && isSignedIn,
     refetchInterval: 60000, // Refresh every minute
   });
 }
@@ -127,9 +83,18 @@ export function useInfraRecommendations() {
  * Hook to fetch infrastructure cost report
  */
 export function useInfraCostReport(days: number = 7) {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
   return useQuery({
     queryKey: ['infra', 'cost-report', days],
-    queryFn: () => fetchCostReport(days),
+    queryFn: async () => {
+      const response = await fetchJson<CostReportResponse>(`/api/v1/infra/cost-report?days=${days}`);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: isLoaded && isSignedIn,
     refetchInterval: 300000, // Refresh every 5 minutes
   });
 }
@@ -138,9 +103,18 @@ export function useInfraCostReport(days: number = 7) {
  * Hook to fetch real-time infrastructure snapshot
  */
 export function useInfraSnapshot() {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
   return useQuery({
     queryKey: ['infra', 'snapshot'],
-    queryFn: fetchInfraSnapshot,
+    queryFn: async () => {
+      const response = await fetchJson<InfraSnapshotResponse>('/api/v1/infra/snapshot');
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: isLoaded && isSignedIn,
     refetchInterval: 15000, // Refresh every 15 seconds for real-time data
   });
 }
@@ -149,9 +123,18 @@ export function useInfraSnapshot() {
  * Hook to fetch savings summary
  */
 export function useInfraSavings() {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
   return useQuery({
     queryKey: ['infra', 'savings'],
-    queryFn: fetchSavingsSummary,
+    queryFn: async () => {
+      const response = await fetchJson<SavingsSummaryResponse>('/api/v1/infra/savings-summary');
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    enabled: isLoaded && isSignedIn,
     refetchInterval: 60000, // Refresh every minute
   });
 }
@@ -160,11 +143,23 @@ export function useInfraSavings() {
  * Hook to apply a recommendation
  */
 export function useApplyRecommendation() {
+  const { fetchJson } = useAuthApi();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, auto = false }: { id: string; auto?: boolean }) =>
-      applyRecommendation(id, auto),
+    mutationFn: async ({ id, auto = false }: { id: string; auto?: boolean }) => {
+      const response = await fetchJson<ApplyRecommendationResponse>(
+        `/api/v1/infra/recommendations/${id}/apply`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ auto }),
+        }
+      );
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
     onSuccess: () => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['infra', 'recommendations'] });
@@ -240,18 +235,19 @@ export function useInfraCostBreakdown(days: number = 30) {
  * This fetches from the AI cost tracker service
  */
 export function useLLMCostTracking(period: string = '30d') {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
   return useQuery({
     queryKey: ['llm', 'costs', period],
     queryFn: async (): Promise<LLMUsageData> => {
-      const response = await organizationScopedFetch(
-        `/api/v1/ai/usage?period=${period}`
-      );
-      if (!response.ok) {
+      const response = await fetchJson<LLMUsageData>(`/api/v1/ai/usage?period=${period}`);
+      if (response.error) {
         // Return mock data for now if endpoint doesn't exist
         return getMockLLMData(period);
       }
-      return response.json();
+      return response.data || getMockLLMData(period);
     },
+    enabled: isLoaded && isSignedIn,
     refetchInterval: 300000, // Refresh every 5 minutes
   });
 }
