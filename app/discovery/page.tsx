@@ -1414,9 +1414,10 @@ export default function DiscoveryPage() {
 
         <div className="p-6 space-y-6">
           {/* Discovery Progress (shown when running) */}
-          {isDiscovering && discoveryData?.session?.id && (
+          {/* Use currentSessionId for new sessions, or discoveryData.session.id for existing */}
+          {isDiscovering && (currentSessionId || discoveryData?.session?.id) && (
             <DiscoveryProgress
-              sessionId={discoveryData.session.id}
+              sessionId={currentSessionId || discoveryData?.session?.id || ''}
               onComplete={(result) => {
                 setCurrentSessionId(null);
                 queryClient.invalidateQueries({ queryKey: ['latest-discovery', currentProject] });
