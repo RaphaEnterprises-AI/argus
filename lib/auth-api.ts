@@ -5,9 +5,25 @@
  * It automatically includes the Clerk JWT token in all requests.
  */
 
-// Backend URLs - use empty string for relative URLs (proxied through Next.js rewrites)
-const BACKEND_URL = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL ??
-                    (typeof window !== 'undefined' ? '' : (process.env.ARGUS_BACKEND_URL || 'http://localhost:8000'));
+// Backend URL with production fallback
+// Note: In production, we connect directly to Railway backend; localhost is for development only
+const getBackendUrl = () => {
+  // Explicit override from environment
+  if (process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL;
+  }
+  // Server-side check
+  if (typeof window === 'undefined') {
+    return process.env.ARGUS_BACKEND_URL || 'http://localhost:8000';
+  }
+  // Client-side: Production fallback to Railway
+  if (window.location.hostname !== 'localhost') {
+    return 'https://argus-brain-production.up.railway.app';
+  }
+  // Local development
+  return 'http://localhost:8000';
+};
+const BACKEND_URL = getBackendUrl();
 
 export interface AuthenticatedFetchOptions extends RequestInit {
   token?: string;

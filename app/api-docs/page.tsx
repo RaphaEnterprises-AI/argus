@@ -37,7 +37,18 @@ const SwaggerUI = dynamic(() => import('swagger-ui-react'), {
 // Import Swagger UI styles
 import 'swagger-ui-react/swagger-ui.css';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL || 'http://localhost:8000';
+// Backend URL with production fallback
+const getBackendUrl = () => {
+  if (process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_ARGUS_BACKEND_URL;
+  }
+  // Production fallback
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://argus-brain-production.up.railway.app';
+  }
+  return 'http://localhost:8000';
+};
+const BACKEND_URL = getBackendUrl();
 
 // Use local proxy to avoid CORS issues when fetching OpenAPI spec
 const OPENAPI_SPEC_URL = '/api/openapi-spec';

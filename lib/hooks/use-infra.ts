@@ -11,8 +11,8 @@ import type {
   SeleniumData,
 } from '@/components/infra';
 
-// API base URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Note: organizationScopedFetch handles the backend URL automatically via lib/auth-api.ts
+// DO NOT hardcode localhost URLs here - use relative paths only
 
 // Types for API responses
 interface RecommendationsResponse {
@@ -62,7 +62,7 @@ interface ApplyRecommendationResponse {
 
 // Fetch functions
 async function fetchRecommendations(): Promise<RecommendationsResponse> {
-  const response = await organizationScopedFetch(`${API_BASE}/api/v1/infra/recommendations`);
+  const response = await organizationScopedFetch('/api/v1/infra/recommendations');
   if (!response.ok) {
     throw new Error('Failed to fetch recommendations');
   }
@@ -71,7 +71,7 @@ async function fetchRecommendations(): Promise<RecommendationsResponse> {
 
 async function fetchCostReport(days: number): Promise<CostReportResponse> {
   const response = await organizationScopedFetch(
-    `${API_BASE}/api/v1/infra/cost-report?days=${days}`
+    `/api/v1/infra/cost-report?days=${days}`
   );
   if (!response.ok) {
     throw new Error('Failed to fetch cost report');
@@ -80,7 +80,7 @@ async function fetchCostReport(days: number): Promise<CostReportResponse> {
 }
 
 async function fetchInfraSnapshot(): Promise<InfraSnapshotResponse> {
-  const response = await organizationScopedFetch(`${API_BASE}/api/v1/infra/snapshot`);
+  const response = await organizationScopedFetch('/api/v1/infra/snapshot');
   if (!response.ok) {
     throw new Error('Failed to fetch infrastructure snapshot');
   }
@@ -88,7 +88,7 @@ async function fetchInfraSnapshot(): Promise<InfraSnapshotResponse> {
 }
 
 async function fetchSavingsSummary(): Promise<SavingsSummaryResponse> {
-  const response = await organizationScopedFetch(`${API_BASE}/api/v1/infra/savings-summary`);
+  const response = await organizationScopedFetch('/api/v1/infra/savings-summary');
   if (!response.ok) {
     throw new Error('Failed to fetch savings summary');
   }
@@ -97,7 +97,7 @@ async function fetchSavingsSummary(): Promise<SavingsSummaryResponse> {
 
 async function applyRecommendation(id: string, auto: boolean): Promise<ApplyRecommendationResponse> {
   const response = await organizationScopedFetch(
-    `${API_BASE}/api/v1/infra/recommendations/${id}/apply`,
+    `/api/v1/infra/recommendations/${id}/apply`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -244,7 +244,7 @@ export function useLLMCostTracking(period: string = '30d') {
     queryKey: ['llm', 'costs', period],
     queryFn: async (): Promise<LLMUsageData> => {
       const response = await organizationScopedFetch(
-        `${API_BASE}/api/v1/ai/usage?period=${period}`
+        `/api/v1/ai/usage?period=${period}`
       );
       if (!response.ok) {
         // Return mock data for now if endpoint doesn't exist
