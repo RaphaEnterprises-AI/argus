@@ -144,7 +144,15 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             messages: coreMessages.map((m) => ({
               role: m.role,
-              content: m.content,
+              // Content can be string or array (for multimodal) - ensure it's always a string for backend
+              content: typeof m.content === 'string'
+                ? m.content
+                : Array.isArray(m.content)
+                  ? m.content
+                      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+                      .map(part => part.text)
+                      .join('\n') || JSON.stringify(m.content)
+                  : JSON.stringify(m.content),
             })),
             thread_id: threadId,
             app_url: appUrl,
@@ -166,19 +174,34 @@ export async function POST(req: Request) {
           let errorMessage = 'Backend error';
           try {
             const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.detail || errorJson.error || errorJson.message || errorText;
+            // Handle FastAPI validation errors (array of {loc, msg, type})
+            if (Array.isArray(errorJson.detail)) {
+              const validationErrors = errorJson.detail
+                .map((err: { loc?: string[]; msg?: string }) => {
+                  const field = err.loc?.slice(1).join('.') || 'unknown';
+                  return `${field}: ${err.msg || 'invalid'}`;
+                })
+                .join('; ');
+              errorMessage = validationErrors || 'Validation failed';
+            } else if (typeof errorJson.detail === 'string') {
+              errorMessage = errorJson.detail;
+            } else if (errorJson.error) {
+              errorMessage = errorJson.error;
+            } else if (errorJson.message) {
+              errorMessage = errorJson.message;
+            } else {
+              errorMessage = errorText;
+            }
           } catch {
             errorMessage = errorText || `Backend returned status ${response.status}`;
           }
 
-          // Return backend error in AI SDK format (don't fall back for known errors)
+          // Add context based on status code
           if (response.status === 401) {
             errorMessage = 'Authentication failed. Please sign in again.';
           } else if (response.status === 422) {
-            // Validation error - show the actual message
             errorMessage = `Validation error: ${errorMessage}`;
           } else if (response.status >= 500) {
-            // Server error - might be transient, but still show the message
             errorMessage = `Server error: ${errorMessage}`;
           }
 
