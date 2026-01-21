@@ -230,7 +230,12 @@ export default function ComparisonDetailPage() {
 
       switch (e.key) {
         case 'Escape':
-          handleBack();
+          // Close modal if open, otherwise navigate back
+          if (showConfirmReject) {
+            setShowConfirmReject(false);
+          } else {
+            handleBack();
+          }
           break;
         case 'a':
         case 'A':
@@ -255,7 +260,7 @@ export default function ComparisonDetailPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleBack, handleApproveAll, handleRejectAll, handleUpdateBaseline, approveComparison.isPending, updateBaseline.isPending]);
+  }, [handleBack, handleApproveAll, handleRejectAll, handleUpdateBaseline, approveComparison.isPending, updateBaseline.isPending, showConfirmReject]);
 
   // Loading state
   if (isLoading) {
@@ -599,15 +604,26 @@ export default function ComparisonDetailPage() {
 
       {/* Reject confirmation dialog */}
       {showConfirmReject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="reject-dialog-title"
+          aria-describedby="reject-dialog-description"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowConfirmReject(false);
+            }
+          }}
+        >
           <div className="bg-card rounded-lg shadow-lg p-6 max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-full bg-error/10">
                 <AlertTriangle className="h-6 w-6 text-error" />
               </div>
-              <h3 className="text-lg font-semibold">Confirm Rejection</h3>
+              <h3 id="reject-dialog-title" className="text-lg font-semibold">Confirm Rejection</h3>
             </div>
-            <p className="text-muted-foreground mb-6">
+            <p id="reject-dialog-description" className="text-muted-foreground mb-6">
               Are you sure you want to reject all changes? This will mark this comparison as failed
               and you'll need to investigate the visual regression.
             </p>

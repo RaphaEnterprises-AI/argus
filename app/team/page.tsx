@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,6 +75,17 @@ export default function TeamPage() {
   const revokeInvitation = useRevokeInvitation(orgId);
 
   const loading = contextOrgLoading || orgLoading || membersLoading || invitationsLoading;
+
+  // ESC key handler for modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showInviteModal) {
+        setShowInviteModal(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showInviteModal]);
 
   const filteredMembers = members.filter((m: Member) =>
     m.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -510,11 +521,22 @@ export default function TeamPage() {
 
         {/* Invite Modal */}
         {showInviteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-member-title"
+            aria-describedby="invite-member-description"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowInviteModal(false);
+              }
+            }}
+          >
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Invite Team Member</CardTitle>
-                <CardDescription>
+                <CardTitle id="invite-member-title">Invite Team Member</CardTitle>
+                <CardDescription id="invite-member-description">
                   Send an invitation to join your organization
                 </CardDescription>
               </CardHeader>

@@ -98,6 +98,17 @@ export default function APIKeysPage() {
     loadData();
   }, [fetchKeys, isLoaded, isSignedIn]);
 
+  // ESC key handler for modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showCreateModal) {
+        setShowCreateModal(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showCreateModal]);
+
   const activeKeys = keys.filter(k => k.is_active);
   const revokedKeys = keys.filter(k => !k.is_active);
 
@@ -510,11 +521,23 @@ export default function APIKeysPage() {
 
         {/* Create Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-key-title"
+            aria-describedby="create-key-description"
+            onClick={(e) => {
+              // Close on backdrop click (not on modal content click)
+              if (e.target === e.currentTarget) {
+                setShowCreateModal(false);
+              }
+            }}
+          >
             <Card className="w-full max-w-lg">
               <CardHeader>
-                <CardTitle>Create API Key</CardTitle>
-                <CardDescription>
+                <CardTitle id="create-key-title">Create API Key</CardTitle>
+                <CardDescription id="create-key-description">
                   Create a new API key for programmatic access
                 </CardDescription>
               </CardHeader>

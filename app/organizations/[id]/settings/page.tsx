@@ -326,6 +326,23 @@ export default function OrganizationSettingsPage() {
   const isOwner = currentUserRole === 'owner';
   const isAdmin = currentUserRole === 'owner' || currentUserRole === 'admin';
 
+  // ESC key handler for modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showInviteModal) {
+          setShowInviteModal(false);
+        }
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+          setDeleteConfirmText('');
+        }
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showInviteModal, showDeleteConfirm]);
+
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-screen">
@@ -833,11 +850,22 @@ export default function OrganizationSettingsPage() {
 
         {/* Invite Modal */}
         {showInviteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="org-invite-title"
+            aria-describedby="org-invite-description"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowInviteModal(false);
+              }
+            }}
+          >
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Invite Team Member</CardTitle>
-                <CardDescription>Send an invitation to join your organization</CardDescription>
+                <CardTitle id="org-invite-title">Invite Team Member</CardTitle>
+                <CardDescription id="org-invite-description">Send an invitation to join your organization</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -905,11 +933,23 @@ export default function OrganizationSettingsPage() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-org-title"
+            aria-describedby="delete-org-description"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowDeleteConfirm(false);
+                setDeleteConfirmText('');
+              }
+            }}
+          >
             <Card className="w-full max-w-md border-red-500/50">
               <CardHeader>
-                <CardTitle className="text-red-500">Delete Organization</CardTitle>
-                <CardDescription>
+                <CardTitle id="delete-org-title" className="text-red-500">Delete Organization</CardTitle>
+                <CardDescription id="delete-org-description">
                   This action is permanent and cannot be undone. All data will be lost.
                 </CardDescription>
               </CardHeader>
