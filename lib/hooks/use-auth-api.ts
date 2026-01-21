@@ -75,6 +75,14 @@ export function useAuthApi() {
     });
   }, [getToken]);
 
+  // Build organization headers when orgId is available
+  const getOrgHeaders = useCallback((): Record<string, string> => {
+    if (orgId) {
+      return { 'X-Organization-ID': orgId };
+    }
+    return {};
+  }, [orgId]);
+
   // Helper for JSON responses with abort and timeout support
   const fetchJson = useCallback(async <T>(
     endpoint: string,
@@ -110,6 +118,7 @@ export function useAuthApi() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getOrgHeaders(),
           ...(fetchOptions?.headers || {}),
         },
       });
@@ -142,7 +151,7 @@ export function useAuthApi() {
     } finally {
       clearTimeout(timeoutId);
     }
-  }, [getToken]);
+  }, [getToken, getOrgHeaders]);
 
   // Stream fetch for SSE endpoints with abort support
   const fetchStream = useCallback(async (
@@ -161,6 +170,7 @@ export function useAuthApi() {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...getOrgHeaders(),
       },
       body: body ? JSON.stringify(body) : undefined,
       signal,
@@ -219,7 +229,7 @@ export function useAuthApi() {
         // Ignore cancel errors
       }
     }
-  }, [getToken]);
+  }, [getToken, getOrgHeaders]);
 
   return {
     api,
