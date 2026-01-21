@@ -265,9 +265,10 @@ export function useStartDiscovery() {
           const { data: loginFlow } = await (supabase.from('discovered_flows') as any)
             .insert({
               discovery_session_id: session.id,
-              project_id: projectId,
+              // Note: project_id removed - column doesn't exist in discovered_flows table
               name: 'User Login Flow',
               description: 'Authenticate user with credentials',
+              flow_type: 'authentication', // Required NOT NULL field
               steps: [
                 { instruction: 'Navigate to login page' },
                 { instruction: 'Enter username/email' },
@@ -275,8 +276,6 @@ export function useStartDiscovery() {
                 { instruction: 'Click login button' },
                 { instruction: 'Verify successful login' },
               ],
-              step_count: 5,
-              priority: 'critical',
             })
             .select()
             .single();
@@ -289,14 +288,12 @@ export function useStartDiscovery() {
           const { data: navFlow } = await (supabase.from('discovered_flows') as any)
             .insert({
               discovery_session_id: session.id,
-              project_id: projectId,
               name: 'Navigation Flow',
               description: 'Verify main navigation links work correctly',
+              flow_type: 'navigation', // Required NOT NULL field
               steps: links.slice(0, 5).map((link: any) => ({
                 instruction: link.description || `Click on link`,
               })),
-              step_count: Math.min(links.length, 5),
-              priority: 'high',
             })
             .select()
             .single();
@@ -309,17 +306,15 @@ export function useStartDiscovery() {
           const { data: formFlow } = await (supabase.from('discovered_flows') as any)
             .insert({
               discovery_session_id: session.id,
-              project_id: projectId,
               name: 'Form Submission Flow',
               description: 'Submit form with valid data',
+              flow_type: 'form_submission', // Required NOT NULL field
               steps: [
                 { instruction: 'Locate the form' },
                 { instruction: 'Fill in required fields' },
                 { instruction: 'Submit the form' },
                 { instruction: 'Verify submission success' },
               ],
-              step_count: 4,
-              priority: 'high',
             })
             .select()
             .single();
@@ -332,14 +327,12 @@ export function useStartDiscovery() {
           const { data: buttonFlow } = await (supabase.from('discovered_flows') as any)
             .insert({
               discovery_session_id: session.id,
-              project_id: projectId,
               name: 'Button Interactions',
               description: 'Test interactive button elements',
+              flow_type: 'custom', // Required NOT NULL field
               steps: buttons.slice(0, 3).map((btn: any) => ({
                 instruction: btn.description || `Click the button`,
               })),
-              step_count: Math.min(buttons.length, 3),
-              priority: 'medium',
             })
             .select()
             .single();
