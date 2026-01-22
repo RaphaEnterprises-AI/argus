@@ -24,9 +24,11 @@ interface CostReportResponse {
   breakdown: Record<string, number>;
   daily_costs: Array<{ date: string; cost: number }>;
   projected_monthly: number;
-  comparison_to_browserstack: number;
-  savings_achieved: number;
-  savings_percentage: number;
+  // Platform-specific costs
+  vultr_cost?: number;
+  railway_cost?: number;
+  cloudflare_cost?: number;
+  ai_cost?: number;
 }
 
 interface InfraSnapshotResponse {
@@ -45,9 +47,7 @@ interface SavingsSummaryResponse {
   total_monthly_savings: number;
   recommendations_applied: number;
   current_monthly_cost: number;
-  browserstack_equivalent: number;
-  savings_vs_browserstack: number;
-  savings_percentage: number;
+  cost_trend: number; // Percentage change vs last period
 }
 
 interface ApplyRecommendationResponse {
@@ -270,21 +270,23 @@ export function useApplyRecommendation() {
 export function useInfraCostOverview(days: number = 30) {
   const costReport = useInfraCostReport(days);
   const snapshot = useInfraSnapshot();
-  const savings = useInfraSavings();
 
-  const isLoading = costReport.isLoading || snapshot.isLoading || savings.isLoading;
-  const error = costReport.error || snapshot.error || savings.error;
+  const isLoading = costReport.isLoading || snapshot.isLoading;
+  const error = costReport.error || snapshot.error;
 
   let data: CostOverviewData | null = null;
 
-  if (costReport.data && snapshot.data && savings.data) {
+  if (costReport.data && snapshot.data) {
     data = {
       currentMonthCost: costReport.data.total_cost,
       projectedMonthCost: costReport.data.projected_monthly,
-      browserStackEquivalent: costReport.data.comparison_to_browserstack,
-      savingsPercentage: costReport.data.savings_percentage,
       totalNodes: snapshot.data.total_nodes,
       totalPods: snapshot.data.total_pods,
+      // Platform-specific costs
+      vultrCost: costReport.data.vultr_cost,
+      railwayCost: costReport.data.railway_cost,
+      cloudflareCost: costReport.data.cloudflare_cost,
+      aiCost: costReport.data.ai_cost,
     };
   }
 
@@ -295,7 +297,6 @@ export function useInfraCostOverview(days: number = 30) {
     refetch: () => {
       costReport.refetch();
       snapshot.refetch();
-      savings.refetch();
     },
   };
 }
@@ -346,9 +347,20 @@ export function useLLMCostTracking(period: string = '30d') {
     queryFn: async (): Promise<LLMUsageData> => {
       const days = getDaysFromPeriod(period);
       const response = await fetchJson<UsageApiResponse>(`/api/v1/users/me/ai-usage?days=${days}`);
-      if (response.error || !response.data) {
-        // Return mock data if endpoint fails
-        return getMockLLMData(period);
+      if (response.error) {
+        throw new Error(response.error || 'Failed to fetch AI usage data');
+      }
+      if (!response.data) {
+        // Return empty state instead of mock data
+        return {
+          models: [],
+          features: [],
+          total_cost: 0,
+          total_requests: 0,
+          total_input_tokens: 0,
+          total_output_tokens: 0,
+          period,
+        };
       }
       // Transform API response to LLMUsageData format
       return transformUsageResponse(response.data, period);
@@ -358,79 +370,5 @@ export function useLLMCostTracking(period: string = '30d') {
   });
 }
 
-// Mock data for LLM costs (until API is fully implemented)
-// Updated for 2026 - ALL via OpenRouter (single provider, single API key)
-function getMockLLMData(period: string): LLMUsageData {
-  return {
-    models: [
-      // Primary model for code analysis & test generation (90% cheaper than Claude)
-      {
-        name: 'deepseek/deepseek-chat-v3',
-        provider: 'openrouter',
-        input_tokens: 15000000,
-        output_tokens: 4000000,
-        cost: 3.22,  // $0.14/1M in + $0.28/1M out
-        requests: 2200,
-      },
-      // Reasoning model for self-healing & debugging
-      {
-        name: 'deepseek/deepseek-r1',
-        provider: 'openrouter',
-        input_tokens: 3000000,
-        output_tokens: 2500000,
-        cost: 7.13,  // $0.55/1M in + $2.19/1M out
-        requests: 350,
-      },
-      // Fast inference for trivial tasks
-      {
-        name: 'qwen/qwq-32b',
-        provider: 'openrouter',
-        input_tokens: 8000000,
-        output_tokens: 2000000,
-        cost: 1.32,  // $0.12/1M in + $0.18/1M out
-        requests: 4500,
-      },
-      // Cheapest for simple extraction/classification
-      {
-        name: 'google/gemini-2.5-flash-lite',
-        provider: 'openrouter',
-        input_tokens: 12000000,
-        output_tokens: 3000000,
-        cost: 2.40,  // $0.10/1M in + $0.40/1M out
-        requests: 6000,
-      },
-      // Computer Use - browser automation (Claude still best)
-      {
-        name: 'anthropic/claude-sonnet-4',
-        provider: 'openrouter',
-        input_tokens: 2000000,
-        output_tokens: 800000,
-        cost: 18.00,  // $3/1M in + $15/1M out
-        requests: 180,
-      },
-      // Embeddings
-      {
-        name: 'openai/text-embedding-3-small',
-        provider: 'openrouter',
-        input_tokens: 25000000,
-        output_tokens: 0,
-        cost: 0.50,  // $0.02/1M
-        requests: 12500,
-      },
-    ],
-    features: [
-      { name: 'Test Generation', cost: 5.50, percentage: 17, requests: 1200 },   // DeepSeek
-      { name: 'Self-Healing', cost: 12.30, percentage: 38, requests: 350 },      // DeepSeek R1
-      { name: 'Code Analysis', cost: 2.80, percentage: 9, requests: 800 },       // DeepSeek
-      { name: 'Infra Optimization', cost: 2.50, percentage: 8, requests: 95 },   // DeepSeek R1
-      { name: 'Embeddings', cost: 0.50, percentage: 2, requests: 12500 },        // OpenAI
-      { name: 'Computer Use', cost: 18.00, percentage: 22, requests: 180 },      // Claude (browser)
-      { name: 'Chat', cost: 0.97, percentage: 4, requests: 250 },                // Qwen/Gemini
-    ],
-    total_cost: 32.57,  // ~75% reduction from previous $127.40!
-    total_requests: 25730,
-    total_input_tokens: 65000000,
-    total_output_tokens: 12300000,
-    period,
-  };
-}
+// Note: Mock data removed - dashboard now shows real data only
+// If API fails, an empty state is returned instead of fake data
