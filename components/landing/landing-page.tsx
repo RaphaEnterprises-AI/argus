@@ -685,7 +685,7 @@ export function LandingPage() {
               <StaggerItem key={i} className="relative">
                 <div className="p-6 h-full group text-center rounded-2xl bg-gradient-to-b from-white/[0.06] to-white/[0.02] backdrop-blur-xl border border-border hover:border-primary/30 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)] transition-all duration-300">
                   <div className="text-4xl font-bold bg-gradient-to-b from-primary/40 to-primary/10 bg-clip-text text-transparent mb-3 group-hover:from-primary/60 group-hover:to-primary/20 transition-all">{step.num}</div>
-                  <div className={`w-12 h-12 mx-auto rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-black/30`}>
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-black/30">
                     <step.icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2 text-foreground">{step.title}</h3>
