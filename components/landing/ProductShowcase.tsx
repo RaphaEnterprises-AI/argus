@@ -75,7 +75,7 @@ export function ProductShowcase({
       case 'healed':
         return <RefreshCw className="w-4 h-4 text-violet-500" />;
       default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
+        return <Clock className="w-4 h-4 text-muted-foreground/80" />;
     }
   };
 
@@ -90,19 +90,19 @@ export function ProductShowcase({
       case 'healed':
         return 'bg-violet-500/10 border-violet-500/20';
       default:
-        return 'bg-muted/50 border-border';
+        return 'bg-muted/20 border-border';
     }
   };
 
   return (
-    <section ref={containerRef} className="py-24 px-6 lg:px-8 relative overflow-hidden">
+    <section ref={containerRef} className="py-24 px-6 lg:px-8 relative overflow-hidden bg-gradient-to-b from-background to-card">
       {/* Animated background */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{ opacity }}
       >
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-500/5 rounded-full blur-[100px]" />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px]" />
       </motion.div>
 
       <div className="max-w-7xl mx-auto relative">
@@ -113,7 +113,7 @@ export function ProductShowcase({
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
             {title.split(' ').map((word, i) =>
               word === 'Future' || word === 'Testing' ? (
                 <span key={i} className="gradient-text">{word} </span>
@@ -139,16 +139,16 @@ export function ProductShowcase({
           <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-violet-500/20 to-cyan-500/20 rounded-3xl blur-2xl opacity-50" />
 
           {/* Dashboard container */}
-          <div className="relative rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl">
+          <div className="relative rounded-2xl border border-border bg-gradient-to-br from-muted/30 via-muted/15 to-transparent backdrop-blur-xl overflow-hidden shadow-2xl">
             {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-muted/30">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/15">
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-red-500/60" />
                 <div className="w-3 h-3 rounded-full bg-amber-500/60" />
                 <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
               </div>
               <div className="flex-1 flex justify-center">
-                <div className="px-4 py-1 rounded-md bg-muted/50 text-xs text-muted-foreground font-mono">
+                <div className="px-4 py-1 rounded-md bg-muted/20 text-xs text-muted-foreground/80 font-mono">
                   app.heyargus.ai/dashboard
                 </div>
               </div>
@@ -169,16 +169,16 @@ export function ProductShowcase({
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Quality Score Card */}
                 <motion.div
-                  className="lg:col-span-1 p-6 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50"
+                  className="lg:col-span-1 p-6 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 border border-border"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={isInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ duration: 0.5, delay: 0.4 }}
                 >
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/15 border border-primary/20">
                       <Brain className="w-5 h-5 text-primary" />
                     </div>
-                    <span className="font-semibold">AI Quality Score</span>
+                    <span className="font-semibold text-foreground">AI Quality Score</span>
                   </div>
 
                   <div className="relative flex justify-center mb-6">
@@ -190,7 +190,7 @@ export function ProductShowcase({
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="8"
-                        className="text-muted/30"
+                        className="text-muted-foreground/20"
                       />
                       <motion.circle
                         cx="64"
@@ -228,17 +228,17 @@ export function ProductShowcase({
                     {qualityMetrics.slice(0, 2).map((metric, i) => (
                       <motion.div
                         key={metric.label}
-                        className="p-3 rounded-lg bg-background/50"
+                        className="p-3 rounded-lg bg-muted/20 border border-border"
                         initial={{ opacity: 0, y: 10 }}
                         animate={isInView ? { opacity: 1, y: 0 } : {}}
                         transition={{ duration: 0.3, delay: 0.6 + i * 0.1 }}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <metric.icon className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-xs text-emerald-500">{metric.trend}</span>
+                          <metric.icon className="w-3 h-3 text-muted-foreground/80" />
+                          <span className="text-xs text-emerald-400">{metric.trend}</span>
                         </div>
-                        <div className="text-lg font-bold">{typeof metric.value === 'number' ? `${metric.value}%` : metric.value}</div>
-                        <div className="text-xs text-muted-foreground">{metric.label}</div>
+                        <div className="text-lg font-bold text-foreground">{typeof metric.value === 'number' ? `${metric.value}%` : metric.value}</div>
+                        <div className="text-xs text-muted-foreground/80">{metric.label}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -246,21 +246,21 @@ export function ProductShowcase({
 
                 {/* Test Results */}
                 <motion.div
-                  className="lg:col-span-2 p-6 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50"
+                  className="lg:col-span-2 p-6 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 border border-border"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={isInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ duration: 0.5, delay: 0.5 }}
                 >
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-500/10">
-                        <Zap className="w-5 h-5 text-emerald-500" />
+                      <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/20">
+                        <Zap className="w-5 h-5 text-emerald-400" />
                       </div>
-                      <span className="font-semibold">Live Test Execution</span>
+                      <span className="font-semibold text-foreground">Live Test Execution</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <motion.div
-                        className="w-2 h-2 rounded-full bg-emerald-500"
+                        className="w-2 h-2 rounded-full bg-emerald-400"
                         animate={{ opacity: [1, 0.5, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />
@@ -283,14 +283,14 @@ export function ProductShowcase({
                       >
                         <div className="flex items-center gap-3">
                           {getStatusIcon(test.status)}
-                          <span className="text-sm font-medium">{test.name}</span>
+                          <span className="text-sm font-medium text-foreground">{test.name}</span>
                           {test.status === 'healed' && (
-                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-violet-500/20 text-violet-400 font-medium">
+                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-violet-500/20 text-violet-400 font-medium border border-violet-500/30">
                               AI Healed
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground/80">
                           <span>{test.coverage}% coverage</span>
                           <span className="font-mono">{test.duration}</span>
                         </div>
@@ -300,11 +300,11 @@ export function ProductShowcase({
 
                   {/* Progress bar */}
                   <div className="mt-6">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground/80 mb-2">
                       <span>Test Suite Progress</span>
                       <span>4/5 Complete</span>
                     </div>
-                    <div className="h-2 rounded-full bg-muted/50 overflow-hidden">
+                    <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
                       <motion.div
                         className="h-full bg-gradient-to-r from-primary to-cyan-500 rounded-full"
                         initial={{ width: '0%' }}
@@ -326,22 +326,22 @@ export function ProductShowcase({
                 {qualityMetrics.map((metric, i) => (
                   <div
                     key={metric.label}
-                    className="flex items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border/30"
+                    className="flex items-center gap-3 p-4 rounded-xl bg-muted/20 border border-border"
                   >
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-primary/15 border border-primary/20">
                       <metric.icon className="w-4 h-4 text-primary" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold">
+                        <span className="font-bold text-foreground">
                           {typeof metric.value === 'number' ? `${metric.value}%` : metric.value}
                         </span>
-                        <span className="text-xs text-emerald-500 flex items-center gap-0.5">
+                        <span className="text-xs text-emerald-400 flex items-center gap-0.5">
                           <TrendingUp className="w-3 h-3" />
                           {metric.trend}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{metric.label}</span>
+                      <span className="text-xs text-muted-foreground/80">{metric.label}</span>
                     </div>
                   </div>
                 ))}
@@ -351,33 +351,33 @@ export function ProductShowcase({
 
           {/* Floating elements */}
           <motion.div
-            className="absolute -top-4 -right-4 p-3 rounded-xl bg-card border border-border shadow-xl"
+            className="absolute -top-4 -right-4 p-3 rounded-xl bg-gradient-to-br from-muted/30 to-muted/20 backdrop-blur-xl border border-border shadow-2xl"
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
               <div>
-                <div className="text-xs font-medium">Tests Passed</div>
-                <div className="text-lg font-bold text-emerald-500">1,247</div>
+                <div className="text-xs font-medium text-muted-foreground">Tests Passed</div>
+                <div className="text-lg font-bold text-emerald-400">1,247</div>
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            className="absolute -bottom-4 -left-4 p-3 rounded-xl bg-card border border-border shadow-xl"
+            className="absolute -bottom-4 -left-4 p-3 rounded-xl bg-gradient-to-br from-muted/30 to-muted/20 backdrop-blur-xl border border-border shadow-2xl"
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
           >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <RefreshCw className="w-4 h-4 text-violet-500" />
+              <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 flex items-center justify-center">
+                <RefreshCw className="w-4 h-4 text-violet-400" />
               </div>
               <div>
-                <div className="text-xs font-medium">Self-Healed</div>
-                <div className="text-lg font-bold text-violet-500">38</div>
+                <div className="text-xs font-medium text-muted-foreground">Self-Healed</div>
+                <div className="text-lg font-bold text-violet-400">38</div>
               </div>
             </div>
           </motion.div>

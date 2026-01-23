@@ -57,10 +57,10 @@ export function IntegrationLogos({
   };
 
   return (
-    <section className="py-16 px-6 lg:px-8 overflow-hidden border-y border-border/30">
+    <section className="py-16 px-6 lg:px-8 overflow-hidden bg-background border-y border-border/50">
       <div className="max-w-7xl mx-auto">
         {title && (
-          <p className="text-center text-sm text-muted-foreground mb-10">
+          <p className="text-center text-sm text-muted-foreground mb-10 font-medium tracking-wide">
             {title}
           </p>
         )}
@@ -83,19 +83,22 @@ export function IntegrationLogos({
                 key={`${logo.name}-${index}`}
                 className="group flex flex-col items-center gap-3 flex-shrink-0"
               >
-                <div className="w-12 h-12 flex items-center justify-center opacity-40 hover:opacity-100 transition-all duration-300 hover:scale-110">
+                {/* Logo container with subtle glow background for visibility */}
+                <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-muted/30 backdrop-blur-sm border border-border opacity-70 hover:opacity-100 hover:bg-muted/50 hover:border-border transition-all duration-300 hover:scale-110 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={logo.src}
                     alt={logo.name}
-                    width={40}
-                    height={40}
-                    className={`w-10 h-10 object-contain transition-opacity duration-300 ${
+                    width={32}
+                    height={32}
+                    className={`w-8 h-8 object-contain transition-all duration-300 ${
                       loadedLogos.has(logo.name) ? 'opacity-100' : 'opacity-0'
                     }`}
                     style={{
-                      // Invert dark icons (GitHub, CircleCI) to white for dark backgrounds
-                      filter: ['GitHub', 'CircleCI'].includes(logo.name) ? 'invert(1)' : undefined,
+                      // Invert dark icons for dark backgrounds, increase brightness for others
+                      filter: ['GitHub', 'CircleCI', 'Jest', 'Cypress'].includes(logo.name)
+                        ? 'invert(1) brightness(1.2)'
+                        : 'brightness(1.1) saturate(1.2)',
                     }}
                     onLoad={() => handleImageLoad(logo.name)}
                     onError={(e) => {
@@ -103,7 +106,7 @@ export function IntegrationLogos({
                     }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground/60 group-hover:text-muted-foreground transition-colors duration-300">
+                <span className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300 font-medium">
                   {logo.name}
                 </span>
               </div>

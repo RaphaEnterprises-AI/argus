@@ -1,7 +1,7 @@
 'use client';
 
 import { SignInButton, SignUpButton } from '@clerk/nextjs';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface AuthButtonsProps {
@@ -33,7 +33,8 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
     }
     if (variant === 'hero') {
       return (
-        <button className="group w-full sm:w-auto btn-primary px-8 py-4 text-base rounded-xl opacity-0">
+        <button className="group w-full sm:w-auto btn-gradient-glass px-8 py-4 text-base rounded-2xl opacity-0">
+          <Sparkles className="w-5 h-5" />
           Start Free
           <ArrowRight className="w-5 h-5" />
         </button>
@@ -41,7 +42,7 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
     }
     if (variant === 'cta') {
       return (
-        <button className="group btn-primary px-10 py-4 text-lg rounded-xl opacity-0">
+        <button className="group btn-gradient-glass px-10 py-4 text-lg rounded-2xl opacity-0">
           Get Started Free
           <ArrowRight className="w-5 h-5" />
         </button>
@@ -49,8 +50,8 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
     }
     if (variant === 'pricing') {
       return (
-        <button className={`w-full py-3 rounded-lg font-medium opacity-0 ${
-          popular ? 'btn-primary' : 'btn-secondary'
+        <button className={`w-full py-3 rounded-xl font-medium opacity-0 ${
+          popular ? 'btn-primary' : 'btn-glass'
         }`}>
           {ctaText}
         </button>
@@ -63,7 +64,7 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
     return (
       <div className="flex items-center gap-3">
         <SignInButton mode="modal">
-          <button className="btn-ghost text-sm">Sign In</button>
+          <button className="btn-ghost text-sm hover:bg-muted/50">Sign In</button>
         </SignInButton>
         <SignUpButton mode="modal">
           <button className="btn-primary text-sm">
@@ -78,7 +79,8 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
   if (variant === 'hero') {
     return (
       <SignUpButton mode="modal">
-        <button className="group w-full sm:w-auto btn-primary px-8 py-4 text-base rounded-xl hover-lift hover-glow">
+        <button className="group w-full sm:w-auto btn-gradient-glass px-8 py-4 text-base rounded-2xl">
+          <Sparkles className="w-5 h-5 animate-sparkle" />
           Start Free
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </button>
@@ -89,7 +91,8 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
   if (variant === 'cta') {
     return (
       <SignUpButton mode="modal">
-        <button className="group btn-primary px-10 py-4 text-lg rounded-xl hover-lift hover-glow">
+        <button className="group btn-gradient-glass px-10 py-4 text-lg rounded-2xl">
+          <Sparkles className="w-5 h-5 animate-sparkle" />
           Get Started Free
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </button>
@@ -100,10 +103,13 @@ export function AuthButtons({ variant = 'nav', ctaText, popular }: AuthButtonsPr
   if (variant === 'pricing') {
     return (
       <SignUpButton mode="modal">
-        <button className={`w-full py-3 rounded-lg font-medium transition-all ${
-          popular ? 'btn-primary' : 'btn-secondary'
+        <button className={`w-full py-3.5 rounded-xl font-medium transition-all duration-300 ${
+          popular
+            ? 'btn-primary text-black'
+            : 'btn-glass text-foreground hover:border-primary/40'
         }`}>
           {ctaText}
+          <ArrowRight className="w-4 h-4 inline-block ml-2" />
         </button>
       </SignUpButton>
     );

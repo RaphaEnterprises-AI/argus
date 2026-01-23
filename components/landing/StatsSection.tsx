@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AnimatedCounter } from '../ui/animated-counter';
 import { TrendingUp, TrendingDown, Users, Globe, Building2, TestTube2 } from 'lucide-react';
 
 interface Stat {
@@ -96,11 +95,11 @@ export function StatsSection({
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-20 px-6 lg:px-8 relative overflow-hidden">
+    <section ref={sectionRef} className="py-20 px-6 lg:px-8 relative overflow-hidden bg-background">
       {/* Background decorations */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2" />
-        <div className="absolute top-1/2 right-1/4 w-[300px] h-[300px] bg-cyan-500/5 rounded-full blur-[100px] -translate-y-1/2" />
+        <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[120px] -translate-y-1/2" />
+        <div className="absolute top-1/2 right-1/4 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[100px] -translate-y-1/2" />
       </div>
 
       <div className="max-w-6xl mx-auto relative">
@@ -108,7 +107,7 @@ export function StatsSection({
         {(title || subtitle) && (
           <div className="text-center mb-12">
             {title && (
-              <h2 className="text-3xl sm:text-4xl font-bold mb-4">{title}</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">{title}</h2>
             )}
             {subtitle && (
               <p className="text-muted-foreground max-w-2xl mx-auto">{subtitle}</p>
@@ -129,11 +128,11 @@ export function StatsSection({
               style={{ transitionDelay: `${index * 100}ms` }}
             >
               {/* Glass card with gradient overlay */}
-              <div className="relative h-full rounded-2xl border border-white/10 bg-background/50 backdrop-blur-xl overflow-hidden hover:border-white/20 transition-colors">
+              <div className="relative h-full rounded-2xl border border-border bg-gradient-to-br from-muted/30 via-muted/15 to-transparent backdrop-blur-xl overflow-hidden hover:border-primary/30 transition-all duration-300">
                 {/* Gradient overlay */}
                 <div
                   className={`
-                    absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300
+                    absolute inset-0 opacity-0 group-hover:opacity-[0.08] transition-opacity duration-300
                     bg-gradient-to-br ${stat.gradient || 'from-primary to-primary/50'}
                   `}
                 />
@@ -156,6 +155,7 @@ export function StatsSection({
                       bg-gradient-to-br ${stat.gradient || 'from-primary to-primary/50'}
                       flex items-center justify-center text-white
                       group-hover:scale-110 transition-transform duration-300
+                      shadow-lg shadow-black/30
                     `}
                   >
                     {stat.icon}
@@ -163,7 +163,7 @@ export function StatsSection({
 
                   {/* Value display */}
                   <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-4xl font-bold tracking-tight">
+                    <span className="text-4xl font-bold tracking-tight text-foreground">
                       {stat.displayValue || stat.value}
                     </span>
                     {stat.suffix && (
@@ -192,8 +192,8 @@ export function StatsSection({
                         absolute top-4 right-4
                         flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
                         ${stat.trend.direction === 'up'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-rose-500/10 text-rose-500'
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
                         }
                       `}
                     >
