@@ -24,7 +24,6 @@ import {
   TestTube,
   Code2,
   Terminal,
-  MessageSquare,
   ChevronDown,
   Quote,
   Star,
@@ -1355,13 +1354,13 @@ export function LandingPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <AuthButtons variant="cta" />
                 <a
-                  href="https://discord.gg/argus"
+                  href="https://github.com/RaphaEnterprises-AI/argus"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-glass px-6 py-3.5 text-base rounded-xl"
                 >
-                  <MessageSquare className="w-5 h-5" />
-                  Join Discord
+                  <Github className="w-5 h-5" />
+                  View on GitHub
                 </a>
               </div>
               <p className="text-sm text-muted-foreground/80 mt-6">
@@ -1415,13 +1414,13 @@ export function LandingPage() {
                 <a href="mailto:hello@heyargus.com" className="hover:text-foreground transition-colors">hello@heyargus.com</a>
               </p>
               <div className="flex items-center gap-4">
-                <a href="https://github.com/heyargus" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
+                <a href="https://github.com/RaphaEnterprises-AI/argus" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <Github className="w-5 h-5" />
                 </a>
-                <a href="https://twitter.com/heyargus" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
+                <a href="https://twitter.com/argaborai" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <Twitter className="w-5 h-5" />
                 </a>
-                <a href="https://linkedin.com/company/heyargus" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
+                <a href="https://linkedin.com/company/raphaenterprises" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted/40 rounded-lg transition-colors">
                   <Linkedin className="w-5 h-5" />
                 </a>
               </div>
@@ -1433,8 +1432,8 @@ export function LandingPage() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-sm link-subtle">Features</a></li>
                 <li><a href="#pricing" className="text-sm link-subtle">Pricing</a></li>
-                <li><a href="#integrations" className="text-sm link-subtle">Integrations</a></li>
-                <li><Link href="/legal" className="text-sm link-subtle">Changelog</Link></li>
+                <li><Link href="/integrations" className="text-sm link-subtle">Integrations</Link></li>
+                <li><Link href="/dashboard" className="text-sm link-subtle">Dashboard</Link></li>
               </ul>
             </div>
 
@@ -1447,9 +1446,13 @@ export function LandingPage() {
                     Documentation <ArrowUpRight className="w-3 h-3" />
                   </a>
                 </li>
-                <li><Link href="/legal" className="text-sm link-subtle">API Reference</Link></li>
-                <li><Link href="/legal" className="text-sm link-subtle">Blog</Link></li>
-                <li><Link href="/legal" className="text-sm link-subtle">Status</Link></li>
+                <li><Link href="/api-docs" className="text-sm link-subtle">API Reference</Link></li>
+                <li>
+                  <a href="https://github.com/RaphaEnterprises-AI/argus" target="_blank" rel="noopener noreferrer" className="text-sm link-subtle inline-flex items-center gap-1">
+                    GitHub <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                </li>
+                <li><Link href="/legal/licenses" className="text-sm link-subtle">Open Source</Link></li>
               </ul>
             </div>
 
