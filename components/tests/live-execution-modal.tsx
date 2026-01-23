@@ -43,6 +43,7 @@ interface ExecutionState {
   steps: StepResult[];
   screenshot?: string;
   videoArtifactId?: string;
+  recordingUrl?: string;  // Signed URL for video playback
   error?: string;
   startTime?: number;
   endTime?: number;
@@ -55,9 +56,6 @@ interface LiveExecutionModalProps {
   onClose: () => void;
   onComplete: (success: boolean, results: StepResult[]) => void;
 }
-
-// Worker URL for video playback
-const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 export function LiveExecutionModal({
   test,
@@ -160,6 +158,7 @@ export function LiveExecutionModal({
         steps: Array<{ instruction: string; success: boolean; error?: string; screenshot?: string }>;
         final_screenshot?: string;
         video_artifact_id?: string;
+        recording_url?: string;  // Signed URL for video playback
         error?: string;
       }>('/api/v1/browser/test', {
         method: 'POST',
@@ -197,13 +196,14 @@ export function LiveExecutionModal({
         steps: stepResults,
         screenshot: result.final_screenshot || stepResults[stepResults.length - 1]?.screenshot,
         videoArtifactId: result.video_artifact_id,
+        recordingUrl: result.recording_url,  // Signed URL from backend
         error: result.error,
         startTime: execution.startTime,
         endTime: Date.now(),
       });
 
       // Auto-switch to video view if video is available
-      if (result.video_artifact_id) {
+      if (result.recording_url) {
         setViewMode('video');
       }
 
@@ -250,9 +250,8 @@ export function LiveExecutionModal({
     : null;
 
   const currentScreenshot = stepScreenshots[replayIndex];
-  const videoUrl = execution.videoArtifactId
-    ? `${WORKER_URL}/videos/${execution.videoArtifactId}`
-    : null;
+  // Use the signed recording URL from the backend (includes auth signature)
+  const videoUrl = execution.recordingUrl || null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
