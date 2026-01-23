@@ -13,6 +13,7 @@ const ContentSecurityPolicy = `
   img-src 'self' data: blob: https: http://localhost:*;
   font-src 'self' data: https://fonts.gstatic.com;
   worker-src 'self' blob:;
+  media-src 'self' blob: https://argus-api.samuelvinay-kumar.workers.dev;
   connect-src 'self' https://*.clerk.accounts.dev https://clerk.heyargus.ai https://*.supabase.co wss://*.supabase.co https://argus-brain-production.up.railway.app https://argus-api.samuelvinay-kumar.workers.dev https://*.sentry.io https://www.google-analytics.com https://www.clarity.ms https://vitals.vercel-insights.com https://vercel.live ${isDev ? 'http://localhost:* ws://localhost:*' : ''};
   frame-src 'self' https://*.clerk.accounts.dev https://clerk.heyargus.ai https://challenges.cloudflare.com https://vercel.live;
   frame-ancestors 'none';
