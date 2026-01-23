@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,16 @@ import {
   XCircle,
   Loader2,
   Play,
+  Pause,
   Monitor,
   Clock,
   AlertTriangle,
+  Video,
+  Image,
+  ChevronLeft,
+  ChevronRight,
+  SkipBack,
+  SkipForward,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Test } from '@/lib/supabase/types';
@@ -35,6 +42,7 @@ interface ExecutionState {
   currentStep: number;
   steps: StepResult[];
   screenshot?: string;
+  videoArtifactId?: string;
   error?: string;
   startTime?: number;
   endTime?: number;
@@ -47,6 +55,9 @@ interface LiveExecutionModalProps {
   onClose: () => void;
   onComplete: (success: boolean, results: StepResult[]) => void;
 }
+
+// Worker URL for video playback
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://argus-api.samuelvinay-kumar.workers.dev';
 
 export function LiveExecutionModal({
   test,
@@ -62,6 +73,11 @@ export function LiveExecutionModal({
     steps: [],
   });
 
+  // Replay state for screenshot slideshow
+  const [replayIndex, setReplayIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [viewMode, setViewMode] = useState<'video' | 'screenshots'>('screenshots');
+
   // Extract step instructions - handle multiple formats:
   // - string[] (plain strings)
   // - {instruction: string}[] (object with instruction)
@@ -72,6 +88,28 @@ export function LiveExecutionModal({
         return s.instruction || s.action || '';
       }).filter(Boolean)
     : [];
+
+  // Get screenshots from completed steps
+  const stepScreenshots = execution.steps
+    .map((step, index) => ({ screenshot: step.screenshot, index, instruction: step.instruction }))
+    .filter((s) => s.screenshot);
+
+  // Auto-play slideshow
+  useEffect(() => {
+    if (!isPlaying || stepScreenshots.length === 0) return;
+
+    const interval = setInterval(() => {
+      setReplayIndex((prev) => {
+        if (prev >= stepScreenshots.length - 1) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 2000); // 2 seconds per screenshot
+
+    return () => clearInterval(interval);
+  }, [isPlaying, stepScreenshots.length]);
 
   // Reset state when modal opens with new test
   useEffect(() => {
@@ -84,6 +122,9 @@ export function LiveExecutionModal({
           success: false,
         })),
       });
+      setReplayIndex(0);
+      setIsPlaying(false);
+      setViewMode('screenshots');
     }
   }, [open, test?.id]);
 
@@ -107,7 +148,10 @@ export function LiveExecutionModal({
       status: 'running',
       currentStep: 0,
       startTime: Date.now(),
+      videoArtifactId: undefined,
     }));
+    setReplayIndex(0);
+    setIsPlaying(false);
 
     try {
       // Execute test via Backend Browser Pool with authenticated request
@@ -115,6 +159,7 @@ export function LiveExecutionModal({
         success: boolean;
         steps: Array<{ instruction: string; success: boolean; error?: string; screenshot?: string }>;
         final_screenshot?: string;
+        video_artifact_id?: string;
         error?: string;
       }>('/api/v1/browser/test', {
         method: 'POST',
@@ -123,10 +168,11 @@ export function LiveExecutionModal({
           steps,
           browser: 'chromium',
           screenshot: true,
+          record_video: true, // Enable video recording
           verbose: true,
           timeout: 60000, // Give browser pool 60s per step
         }),
-        timeout: 120000, // 120s timeout for browser pool
+        timeout: 180000, // 180s timeout for video recording
       });
 
       if (response.error || !response.data) {
@@ -150,17 +196,23 @@ export function LiveExecutionModal({
         currentStep: steps.length,
         steps: stepResults,
         screenshot: result.final_screenshot || stepResults[stepResults.length - 1]?.screenshot,
+        videoArtifactId: result.video_artifact_id,
         error: result.error,
         startTime: execution.startTime,
         endTime: Date.now(),
       });
+
+      // Auto-switch to video view if video is available
+      if (result.video_artifact_id) {
+        setViewMode('video');
+      }
 
       onComplete(success, stepResults);
     } catch (error) {
       let errorMessage = 'Unknown error';
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          errorMessage = 'Test timed out after 120 seconds. The page may be slow or elements not found.';
+          errorMessage = 'Test timed out after 180 seconds. The page may be slow or elements not found.';
         } else {
           errorMessage = error.message;
         }
@@ -176,8 +228,30 @@ export function LiveExecutionModal({
     }
   };
 
+  const handlePrevScreenshot = useCallback(() => {
+    setReplayIndex((prev) => Math.max(0, prev - 1));
+    setIsPlaying(false);
+  }, []);
+
+  const handleNextScreenshot = useCallback(() => {
+    setReplayIndex((prev) => Math.min(stepScreenshots.length - 1, prev + 1));
+    setIsPlaying(false);
+  }, [stepScreenshots.length]);
+
+  const togglePlayPause = useCallback(() => {
+    if (replayIndex >= stepScreenshots.length - 1) {
+      setReplayIndex(0);
+    }
+    setIsPlaying((prev) => !prev);
+  }, [replayIndex, stepScreenshots.length]);
+
   const duration = execution.endTime && execution.startTime
     ? ((execution.endTime - execution.startTime) / 1000).toFixed(1)
+    : null;
+
+  const currentScreenshot = stepScreenshots[replayIndex];
+  const videoUrl = execution.videoArtifactId
+    ? `${WORKER_URL}/videos/${execution.videoArtifactId}`
     : null;
 
   return (
@@ -221,21 +295,33 @@ export function LiveExecutionModal({
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {execution.steps.map((step, index) => {
                   const isCurrentStep = index === execution.currentStep && execution.status === 'running';
                   const isCompleted = index < execution.currentStep || execution.status === 'completed' || execution.status === 'failed';
+                  const isReplayFocused = viewMode === 'screenshots' && stepScreenshots[replayIndex]?.index === index;
 
                   return (
-                    <div
+                    <button
                       key={index}
+                      onClick={() => {
+                        const screenshotIdx = stepScreenshots.findIndex((s) => s.index === index);
+                        if (screenshotIdx >= 0) {
+                          setReplayIndex(screenshotIdx);
+                          setViewMode('screenshots');
+                          setIsPlaying(false);
+                        }
+                      }}
                       className={cn(
-                        'p-3 rounded-lg border transition-all',
+                        'w-full p-3 rounded-lg border transition-all text-left',
                         isCurrentStep && 'border-primary bg-primary/5 ring-2 ring-primary/20',
                         isCompleted && step.success && 'border-success/30 bg-success/5',
                         isCompleted && !step.success && 'border-error/30 bg-error/5',
-                        !isCurrentStep && !isCompleted && 'border-border bg-muted/30'
+                        !isCurrentStep && !isCompleted && 'border-border bg-muted/30',
+                        isReplayFocused && 'ring-2 ring-blue-500/50',
+                        step.screenshot && 'cursor-pointer hover:bg-muted/50'
                       )}
+                      disabled={!step.screenshot}
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5">
@@ -254,6 +340,9 @@ export function LiveExecutionModal({
                             <span className="text-xs font-medium text-muted-foreground">
                               Step {index + 1}
                             </span>
+                            {step.screenshot && (
+                              <Image className="h-3 w-3 text-muted-foreground" />
+                            )}
                           </div>
                           <p className="text-sm mt-1">{step.instruction}</p>
                           {step.error && (
@@ -264,7 +353,7 @@ export function LiveExecutionModal({
                           )}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -286,24 +375,45 @@ export function LiveExecutionModal({
               )}
             </div>
 
-            {/* Right: Screenshot/Preview */}
+            {/* Right: Screenshot/Video Preview */}
             <div className="space-y-4">
-              <h3 className="font-medium text-sm">Live Preview</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-sm">Session Replay</h3>
+                {(execution.status === 'completed' || execution.status === 'failed') && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={viewMode === 'screenshots' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setViewMode('screenshots')}
+                    >
+                      <Image className="h-3 w-3 mr-1" />
+                      Screenshots
+                    </Button>
+                    {videoUrl && (
+                      <Button
+                        variant={viewMode === 'video' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setViewMode('video')}
+                      >
+                        <Video className="h-3 w-3 mr-1" />
+                        Video
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="aspect-video rounded-lg border bg-muted/50 overflow-hidden relative">
-                {execution.screenshot ? (
-                  <img
-                    src={`data:image/png;base64,${execution.screenshot}`}
-                    alt="Test screenshot"
-                    className="w-full h-full object-contain"
-                  />
-                ) : execution.status === 'running' ? (
+                {execution.status === 'running' ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="text-sm text-muted-foreground">Executing test...</p>
                     <p className="text-xs text-muted-foreground">
                       Step {execution.currentStep + 1} of {steps.length}
                     </p>
+                    <p className="text-xs text-muted-foreground/60">Recording session...</p>
                   </div>
                 ) : execution.status === 'idle' ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -312,6 +422,28 @@ export function LiveExecutionModal({
                       Click "Run Test" to start
                     </p>
                   </div>
+                ) : viewMode === 'video' && videoUrl ? (
+                  <video
+                    key={videoUrl}
+                    src={videoUrl}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain bg-black"
+                  >
+                    Your browser does not support video playback.
+                  </video>
+                ) : stepScreenshots.length > 0 && currentScreenshot?.screenshot ? (
+                  <img
+                    src={`data:image/png;base64,${currentScreenshot.screenshot}`}
+                    alt={`Step ${currentScreenshot.index + 1} screenshot`}
+                    className="w-full h-full object-contain"
+                  />
+                ) : execution.screenshot ? (
+                  <img
+                    src={`data:image/png;base64,${execution.screenshot}`}
+                    alt="Final screenshot"
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     {execution.status === 'completed' ? (
@@ -326,9 +458,79 @@ export function LiveExecutionModal({
                 )}
               </div>
 
+              {/* Screenshot Slideshow Controls */}
+              {viewMode === 'screenshots' && stepScreenshots.length > 0 && (execution.status === 'completed' || execution.status === 'failed') && (
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReplayIndex(0)}
+                    disabled={replayIndex === 0}
+                  >
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handlePrevScreenshot}
+                    disabled={replayIndex === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={togglePlayPause}
+                    className="min-w-[80px]"
+                  >
+                    {isPlaying ? (
+                      <>
+                        <Pause className="h-4 w-4 mr-1" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-1" />
+                        Play
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNextScreenshot}
+                    disabled={replayIndex >= stepScreenshots.length - 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReplayIndex(stepScreenshots.length - 1)}
+                    disabled={replayIndex >= stepScreenshots.length - 1}
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {replayIndex + 1} / {stepScreenshots.length}
+                  </span>
+                </div>
+              )}
+
+              {/* Current step info */}
+              {viewMode === 'screenshots' && currentScreenshot && (execution.status === 'completed' || execution.status === 'failed') && (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                  <span className="font-medium">Step {currentScreenshot.index + 1}:</span>{' '}
+                  {currentScreenshot.instruction}
+                </div>
+              )}
+
               <div className="text-xs text-muted-foreground">
                 <p><strong>URL:</strong> {appUrl}</p>
                 <p><strong>Browser:</strong> Chrome (Vultr Browser Pool)</p>
+                {execution.videoArtifactId && (
+                  <p><strong>Recording:</strong> Available</p>
+                )}
               </div>
             </div>
           </div>
