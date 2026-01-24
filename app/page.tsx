@@ -235,9 +235,9 @@ function AppContent() {
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Welcome to Argus</h2>
+                <h2 className="text-2xl font-bold">Hey Argus</h2>
                 <p className="text-muted-foreground">
-                  Your AI-powered E2E testing assistant. Create, run, and manage tests using natural language.
+                  Your autonomous quality agents. Describe what you want to test in plain English.
                 </p>
               </div>
 
