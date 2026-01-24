@@ -218,6 +218,15 @@ export default function SchedulesPage() {
       tests_skipped: run.tests_skipped,
       duration_ms: run.duration_ms || undefined,
       error_message: run.error_message || undefined,
+      // AI Analysis fields
+      ai_analysis: run.ai_analysis,
+      is_flaky: run.is_flaky,
+      flaky_score: run.flaky_score,
+      failure_category: run.failure_category,
+      failure_confidence: run.failure_confidence,
+      // Auto-healing fields
+      auto_healed: run.auto_healed,
+      healing_details: run.healing_details,
     }));
 
   const loading = schedulesLoading;
