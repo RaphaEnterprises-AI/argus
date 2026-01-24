@@ -42,6 +42,25 @@ export interface TestSchedule {
   updated_at: string;
 }
 
+// AI Analysis types
+export interface AIAnalysis {
+  category?: string;
+  confidence?: number;
+  summary?: string;
+  suggested_fix?: string;
+  is_flaky?: boolean;
+  root_cause?: string;
+  similar_failures?: string[];
+}
+
+export interface HealingDetails {
+  healed_at?: string;
+  original_selector?: string;
+  new_selector?: string;
+  confidence?: number;
+  healing_type?: string;
+}
+
 export interface ScheduleRun {
   id: string;
   schedule_id: string;
@@ -62,6 +81,15 @@ export interface ScheduleRun {
   logs: Json;
   metadata: Json;
   created_at: string;
+  // AI Analysis fields
+  ai_analysis?: AIAnalysis | null;
+  is_flaky?: boolean;
+  flaky_score?: number;
+  failure_category?: string | null;
+  failure_confidence?: number | null;
+  // Auto-healing fields
+  auto_healed?: boolean;
+  healing_details?: HealingDetails | null;
 }
 
 export interface ScheduleFormData {
@@ -191,6 +219,15 @@ interface ScheduleRunApiResponse {
   error_message: string | null;
   retry_attempt: number;
   logs_url: string | null;
+  // AI Analysis fields
+  ai_analysis?: AIAnalysis | null;
+  is_flaky?: boolean;
+  flaky_score?: number;
+  failure_category?: string | null;
+  failure_confidence?: number | null;
+  // Auto-healing fields
+  auto_healed?: boolean;
+  healing_details?: HealingDetails | null;
 }
 
 // Fetch schedule runs for a specific schedule via backend API
@@ -227,6 +264,15 @@ export function useScheduleRuns(scheduleId: string | null) {
         logs: [],
         metadata: {},
         created_at: r.started_at,
+        // AI Analysis fields
+        ai_analysis: r.ai_analysis,
+        is_flaky: r.is_flaky ?? false,
+        flaky_score: r.flaky_score ?? 0,
+        failure_category: r.failure_category,
+        failure_confidence: r.failure_confidence,
+        // Auto-healing fields
+        auto_healed: r.auto_healed ?? false,
+        healing_details: r.healing_details,
       })) as ScheduleRun[];
     },
     enabled: !!scheduleId,
