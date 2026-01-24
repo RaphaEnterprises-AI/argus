@@ -220,9 +220,9 @@ function AppContent() {
         <div className="flex-1 flex flex-col min-h-0">
           <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-6">
             <div className="flex-1">
-              <h1 className="text-xl font-semibold">Argus Agent</h1>
+              <h1 className="text-xl font-semibold">Hey Argus</h1>
               <p className="text-sm text-muted-foreground">
-                Your autonomous quality companion
+                Your autonomous quality agents
               </p>
             </div>
           </header>
