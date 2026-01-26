@@ -51,6 +51,8 @@ export interface AIAnalysis {
   is_flaky?: boolean;
   root_cause?: string;
   similar_failures?: string[];
+  detailed_analysis?: string;
+  auto_healable?: boolean;
 }
 
 export interface HealingDetails {

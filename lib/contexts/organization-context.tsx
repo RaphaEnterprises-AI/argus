@@ -20,10 +20,12 @@ import {
   useState,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useAuthApi } from '@/lib/hooks/use-auth-api';
+import { setGlobalOrgIdGetter, clearGlobalOrgIdGetter } from '@/lib/api-client';
 
 // Storage key for persisting selected organization
 const CURRENT_ORG_KEY = 'argus_current_org_id';
@@ -85,8 +87,15 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     try {
       setError(null);
 
-      // Fetch from backend - returns organizations with UUID IDs
-      const response = await fetchJson<Organization[]>('/api/v1/users/me/organizations');
+      // Try new multi-tenant endpoint first, fall back to legacy endpoint
+      // New endpoint: /api/v1/orgs - returns organizations with full details
+      // Legacy endpoint: /api/v1/users/me/organizations
+      let response = await fetchJson<Organization[]>('/api/v1/orgs');
+
+      // Fall back to legacy endpoint if new one fails
+      if (response.error && response.status === 404) {
+        response = await fetchJson<Organization[]>('/api/v1/users/me/organizations');
+      }
 
       if (response.error) {
         throw new Error(response.error);
@@ -153,6 +162,20 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     setIsLoading(true);
     await fetchOrganizations();
   }, [fetchOrganizations]);
+
+  // Track current org ID for the getter
+  const currentOrgIdRef = useRef<string | null>(null);
+  currentOrgIdRef.current = currentOrg?.id ?? null;
+
+  // Inject org ID getter into global api-client for multi-tenant requests
+  // This ensures all API calls include X-Organization-ID header
+  useEffect(() => {
+    setGlobalOrgIdGetter(() => currentOrgIdRef.current);
+
+    return () => {
+      clearGlobalOrgIdGetter();
+    };
+  }, []); // Only run once on mount - getter uses ref for current value
 
   // Memoize context value
   const value = useMemo<OrganizationContextValue>(() => ({

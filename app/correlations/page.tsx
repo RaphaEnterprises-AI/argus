@@ -717,7 +717,7 @@ export default function CorrelationsPage() {
             >
               <Lightbulb className="h-4 w-4 mr-2" />
               Insights
-              {insights.length > 0 && (
+              {insights && insights.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {insights.length}
                 </Badge>
@@ -827,7 +827,7 @@ export default function CorrelationsPage() {
                 [...Array(3)].map((_, i) => (
                   <Skeleton key={i} className="h-40" />
                 ))
-              ) : insights.length === 0 ? (
+              ) : !insights || insights.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Lightbulb className="h-12 w-12 text-muted-foreground/50 mb-4" />

@@ -560,23 +560,54 @@ export function useAccessibilityAnalysis() {
     mutationFn: async ({
       url,
       projectId,
+      wcagLevel = 'AA',
     }: {
       url: string;
       projectId?: string;
+      wcagLevel?: 'A' | 'AA' | 'AAA';
     }): Promise<AccessibilityAnalysisResult> => {
-      const response = await fetchJson<AccessibilityAnalysisResult>(
-        '/api/v1/visual/accessibility/analyze',
-        {
-          method: 'POST',
-          body: JSON.stringify({ url, project_id: projectId }),
-        }
-      );
+      // Step 1: Capture a screenshot first
+      const captureResponse = await fetchJson<{
+        id: string;
+        url: string;
+        screenshot_url: string;
+        viewport: { width: number; height: number };
+        browser: string;
+        captured_at: string;
+      }>('/api/v1/visual/capture', {
+        method: 'POST',
+        body: JSON.stringify({
+          url,
+          viewport: { width: 1920, height: 1080 },
+          browser: 'chromium',
+          project_id: projectId,
+          name: `accessibility-${url.replace(/https?:\/\//, '').split('/')[0]}`,
+        }),
+        timeout: 90000,
+      });
 
-      if (response.error || !response.data) {
-        throw new Error(`Accessibility analysis failed: ${response.error || 'Unknown error'}`);
+      if (captureResponse.error || !captureResponse.data) {
+        throw new Error(`Screenshot capture failed: ${captureResponse.error || 'Unknown error'}`);
       }
 
-      return response.data;
+      const snapshotId = captureResponse.data.id;
+
+      // Step 2: Analyze the screenshot for accessibility issues
+      const analysisResponse = await fetchJson<{
+        success: boolean;
+        snapshot_id: string;
+        wcag_level: string;
+        accessibility: AccessibilityAnalysisResult;
+        analyzed_at: string;
+      }>(`/api/v1/visual/accessibility/analyze?snapshot_id=${encodeURIComponent(snapshotId)}&wcag_level=${wcagLevel}`, {
+        method: 'POST',
+      });
+
+      if (analysisResponse.error || !analysisResponse.data) {
+        throw new Error(`Accessibility analysis failed: ${analysisResponse.error || 'Unknown error'}`);
+      }
+
+      return analysisResponse.data.accessibility;
     },
     onSuccess: (_data, variables) => {
       if (variables.projectId) {

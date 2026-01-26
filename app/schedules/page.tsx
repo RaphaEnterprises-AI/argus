@@ -16,7 +16,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { ScheduleCard, type Schedule } from '@/components/schedules/ScheduleCard';
+import { ScheduleCard, type Schedule, type LastRunData } from '@/components/schedules/ScheduleCard';
 import { ScheduleRunHistory, type ScheduleRun } from '@/components/schedules/ScheduleRunHistory';
 import { CreateScheduleModal, type ScheduleFormData } from '@/components/schedules/CreateScheduleModal';
 import { cn } from '@/lib/utils';

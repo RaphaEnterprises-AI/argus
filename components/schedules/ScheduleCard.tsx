@@ -16,10 +16,36 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  Brain,
+  Sparkles,
+  AlertTriangle,
+  Wrench,
+  Target,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+
+// AI Analysis types for last run
+export interface LastRunAIAnalysis {
+  category?: string;
+  confidence?: number;
+  summary?: string;
+  suggested_fix?: string;
+  is_flaky?: boolean;
+  detailed_analysis?: string;
+  auto_healable?: boolean;
+}
+
+export interface LastRunData {
+  ai_analysis?: LastRunAIAnalysis | null;
+  is_flaky?: boolean;
+  flaky_score?: number;
+  failure_category?: string;
+  failure_confidence?: number;
+  auto_healed?: boolean;
+}
 
 export interface Schedule {
   id: string;
@@ -51,6 +77,7 @@ interface ScheduleCardProps {
   onToggle: (scheduleId: string, enabled: boolean) => void;
   onTriggerNow: (scheduleId: string) => void;
   lastRunStatus?: 'passed' | 'failed' | 'running' | 'pending';
+  lastRunData?: LastRunData;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
 }
@@ -103,6 +130,191 @@ function getNextRunCountdown(nextRunAt: string | undefined): string {
   return formatDistanceToNowStrict(nextRun, { addSuffix: true });
 }
 
+// Failure Category Badge Component
+function FailureCategoryBadge({ category, confidence }: { category: string; confidence?: number }) {
+  const normalizedCategory = category.toLowerCase().replace(/_/g, '_');
+
+  const categoryConfig: Record<string, { label: string; className: string; icon: typeof AlertCircle }> = {
+    timing_issue: { label: 'Timing Issue', className: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20', icon: Clock },
+    element_not_found: { label: 'Element Not Found', className: 'bg-red-500/10 text-red-500 border-red-500/20', icon: Target },
+    network_error: { label: 'Network Error', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20', icon: AlertCircle },
+    assertion_failed: { label: 'Assertion Failed', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20', icon: XCircle },
+    network: { label: 'Network', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20', icon: AlertCircle },
+    timeout: { label: 'Timeout', className: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20', icon: Clock },
+    assertion: { label: 'Assertion', className: 'bg-purple-500/10 text-purple-500 border-purple-500/20', icon: XCircle },
+    unknown: { label: 'Unknown', className: 'bg-muted text-muted-foreground border-border', icon: AlertCircle },
+  };
+
+  const config = categoryConfig[normalizedCategory] || categoryConfig.unknown;
+  const Icon = config.icon;
+  const displayCategory = category.replace(/_/g, ' ');
+  const tooltipText = confidence
+    ? `${displayCategory} (${(confidence * 100).toFixed(0)}% confidence)`
+    : displayCategory;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border cursor-help',
+        config.className
+      )}
+      title={tooltipText}
+    >
+      <Icon className="h-3 w-3" />
+      {config.label}
+    </span>
+  );
+}
+
+// Flaky Badge Component
+function FlakyBadge({ score }: { score: number }) {
+  const severity = score > 0.5 ? 'high' : score > 0.3 ? 'medium' : 'low';
+  const config = {
+    high: { label: 'Flaky', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+    medium: { label: 'Possibly Flaky', className: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
+    low: { label: 'Unstable', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+  };
+  const badgeConfig = config[severity];
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border cursor-help',
+        badgeConfig.className
+      )}
+      title={`Flaky Score: ${(score * 100).toFixed(0)}%`}
+    >
+      <AlertTriangle className="h-3 w-3" />
+      {badgeConfig.label}
+    </span>
+  );
+}
+
+// Auto-Healable Badge Component
+function AutoHealableBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 cursor-help"
+      title="This failure can be automatically fixed"
+    >
+      <Sparkles className="h-3 w-3" />
+      Auto-Healable
+    </span>
+  );
+}
+
+// Auto-Healed Badge Component
+function AutoHealedBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-help"
+      title="This test was automatically fixed"
+    >
+      <Wrench className="h-3 w-3" />
+      Auto-Healed
+    </span>
+  );
+}
+
+// Confidence Progress Bar Component
+function ConfidenceBar({ confidence }: { confidence: number }) {
+  const percentage = Math.round(confidence * 100);
+  const colorClass = confidence >= 0.8 ? 'bg-green-500' : confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500';
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Confidence</span>
+        <span className="font-medium">{percentage}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-300', colorClass)}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// AI Analysis Card Component for failed runs
+function AIAnalysisCard({ data }: { data: LastRunData }) {
+  const hasAnalysis = data.ai_analysis || data.failure_category || data.is_flaky;
+
+  if (!hasAnalysis) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary" />
+          <span className="text-xs font-semibold text-primary">AI Analysis</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {data.failure_category && (
+            <FailureCategoryBadge
+              category={data.failure_category}
+              confidence={data.failure_confidence}
+            />
+          )}
+          {data.is_flaky && data.flaky_score && data.flaky_score > 0.1 && (
+            <FlakyBadge score={data.flaky_score} />
+          )}
+          {data.ai_analysis?.auto_healable && !data.auto_healed && (
+            <AutoHealableBadge />
+          )}
+          {data.auto_healed && (
+            <AutoHealedBadge />
+          )}
+        </div>
+      </div>
+
+      {/* Confidence Bar */}
+      {data.ai_analysis?.confidence && (
+        <div className="mb-2">
+          <ConfidenceBar confidence={data.ai_analysis.confidence} />
+        </div>
+      )}
+
+      {/* Summary - prominently displayed */}
+      {data.ai_analysis?.summary && (
+        <div className="mb-2 p-2 bg-muted/50 rounded-lg border border-border">
+          <p className="text-xs font-medium">{data.ai_analysis.summary}</p>
+        </div>
+      )}
+
+      {/* Suggested Fix - callout style */}
+      {data.ai_analysis?.suggested_fix && (
+        <div className="mb-2">
+          <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+            <Sparkles className="h-3 w-3" />
+            Suggested Fix
+          </div>
+          <div className="p-2 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+            <code className="text-xs text-emerald-700 dark:text-emerald-300 block whitespace-pre-wrap font-mono">
+              {data.ai_analysis.suggested_fix}
+            </code>
+          </div>
+        </div>
+      )}
+
+      {/* Flaky Warning */}
+      {data.is_flaky && data.flaky_score && data.flaky_score > 0.1 && (
+        <div className="flex items-start gap-2 p-2 bg-orange-500/5 rounded-lg border border-orange-500/20">
+          <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <span className="font-medium text-orange-600 dark:text-orange-400">Flaky Test Detected</span>
+            <p className="text-muted-foreground mt-0.5">
+              This test has inconsistent pass/fail patterns (score: {(data.flaky_score * 100).toFixed(0)}%)
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ScheduleCard({
   schedule,
   onEdit,
@@ -110,6 +322,7 @@ export function ScheduleCard({
   onToggle,
   onTriggerNow,
   lastRunStatus,
+  lastRunData,
   isExpanded,
   onToggleExpand,
 }: ScheduleCardProps) {
@@ -127,6 +340,11 @@ export function ScheduleCard({
     successRate >= 90 ? 'text-green-500' :
     successRate >= 70 ? 'text-yellow-500' :
     'text-red-500';
+
+  // Show AI analysis for failed runs
+  const showAIAnalysis = lastRunStatus === 'failed' && lastRunData && (
+    lastRunData.ai_analysis || lastRunData.failure_category || lastRunData.is_flaky || lastRunData.auto_healed
+  );
 
   return (
     <Card className={cn(
@@ -351,6 +569,11 @@ export function ScheduleCard({
             )}
           </Button>
         </div>
+
+        {/* AI Analysis Section for Failed Runs */}
+        {showAIAnalysis && lastRunData && (
+          <AIAnalysisCard data={lastRunData} />
+        )}
       </CardContent>
     </Card>
   );

@@ -5,10 +5,13 @@
  *
  * Uses Clerk's authentication to automatically include JWT tokens
  * in all requests to the Argus Python backend.
+ *
+ * MULTI-TENANT: All requests include X-Organization-ID header with
+ * the current organization's backend UUID (not Clerk org_xxx format).
  */
 
 import { useAuth } from '@clerk/nextjs';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useContext } from 'react';
 import { createAuthenticatedClient } from '@/lib/auth-api';
 import { convertKeysToSnakeCase } from '@/lib/api-client';
 
@@ -64,8 +67,24 @@ const DEFAULT_TIMEOUT_MS = 30000;
  * }
  * ```
  */
-export function useAuthApi() {
-  const { getToken, isLoaded, isSignedIn, userId, orgId } = useAuth();
+/**
+ * Options for the useAuthApi hook
+ */
+export interface UseAuthApiOptions {
+  /**
+   * Override the organization ID to use for API requests.
+   * This should be the backend UUID format, NOT Clerk's org_xxx format.
+   * When provided, this takes precedence over Clerk's orgId.
+   */
+  organizationId?: string | null;
+}
+
+export function useAuthApi(options?: UseAuthApiOptions) {
+  const { getToken, isLoaded, isSignedIn, userId, orgId: clerkOrgId } = useAuth();
+
+  // Use provided org ID (backend UUID) or fall back to Clerk's orgId
+  // IMPORTANT: The backend expects UUID format, not Clerk's org_xxx format
+  const effectiveOrgId = options?.organizationId ?? clerkOrgId;
 
   // Create authenticated client
   const api = useMemo(() => {
@@ -77,12 +96,13 @@ export function useAuthApi() {
   }, [getToken]);
 
   // Build organization headers when orgId is available
+  // Prioritize backend UUID from organization context
   const getOrgHeaders = useCallback((): Record<string, string> => {
-    if (orgId) {
-      return { 'X-Organization-ID': orgId };
+    if (effectiveOrgId) {
+      return { 'X-Organization-ID': effectiveOrgId };
     }
     return {};
-  }, [orgId]);
+  }, [effectiveOrgId]);
 
   // Helper for JSON responses with abort and timeout support
   const fetchJson = useCallback(async <T>(
@@ -271,7 +291,10 @@ export function useAuthApi() {
     isLoaded,
     isSignedIn,
     userId,
-    orgId,
+    /** The effective organization ID being used for requests (backend UUID or Clerk ID) */
+    orgId: effectiveOrgId,
+    /** Clerk's organization ID (org_xxx format) - prefer using orgId instead */
+    clerkOrgId,
     getToken,
     backendUrl: BACKEND_URL,
   };

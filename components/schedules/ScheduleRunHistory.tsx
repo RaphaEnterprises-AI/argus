@@ -33,6 +33,8 @@ interface AIAnalysis {
   is_flaky?: boolean;
   root_cause?: string;
   similar_failures?: string[];
+  detailed_analysis?: string;
+  auto_healable?: boolean;
 }
 
 interface HealingDetails {
@@ -165,22 +167,31 @@ function FlakyBadge({ score }: { score: number }) {
 }
 
 function FailureCategoryBadge({ category, confidence }: { category: string; confidence?: number }) {
+  // Normalize category to lowercase for matching
+  const normalizedCategory = category.toLowerCase().replace(/_/g, '_');
+
   const categoryConfig: Record<string, { label: string; className: string; icon: typeof AlertCircle }> = {
-    network: { label: 'Network', className: 'bg-blue-500/10 text-blue-500', icon: AlertCircle },
-    timeout: { label: 'Timeout', className: 'bg-orange-500/10 text-orange-500', icon: Clock },
-    element_not_found: { label: 'Element Missing', className: 'bg-red-500/10 text-red-500', icon: Target },
-    assertion: { label: 'Assertion', className: 'bg-purple-500/10 text-purple-500', icon: XCircle },
-    authentication: { label: 'Auth', className: 'bg-yellow-500/10 text-yellow-500', icon: AlertCircle },
-    data_dependency: { label: 'Data Issue', className: 'bg-cyan-500/10 text-cyan-500', icon: AlertCircle },
-    environment: { label: 'Environment', className: 'bg-green-500/10 text-green-500', icon: AlertCircle },
-    unknown: { label: 'Unknown', className: 'bg-muted text-muted-foreground', icon: AlertCircle },
+    // New categories from API spec
+    timing_issue: { label: 'Timing Issue', className: 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20', icon: Clock },
+    element_not_found: { label: 'Element Not Found', className: 'bg-red-500/10 text-red-500 border border-red-500/20', icon: Target },
+    network_error: { label: 'Network Error', className: 'bg-orange-500/10 text-orange-500 border border-orange-500/20', icon: AlertCircle },
+    assertion_failed: { label: 'Assertion Failed', className: 'bg-purple-500/10 text-purple-500 border border-purple-500/20', icon: XCircle },
+    // Legacy categories for backwards compatibility
+    network: { label: 'Network', className: 'bg-orange-500/10 text-orange-500 border border-orange-500/20', icon: AlertCircle },
+    timeout: { label: 'Timeout', className: 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20', icon: Clock },
+    assertion: { label: 'Assertion', className: 'bg-purple-500/10 text-purple-500 border border-purple-500/20', icon: XCircle },
+    authentication: { label: 'Auth', className: 'bg-amber-500/10 text-amber-500 border border-amber-500/20', icon: AlertCircle },
+    data_dependency: { label: 'Data Issue', className: 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20', icon: AlertCircle },
+    environment: { label: 'Environment', className: 'bg-green-500/10 text-green-500 border border-green-500/20', icon: AlertCircle },
+    unknown: { label: 'Unknown', className: 'bg-muted text-muted-foreground border border-border', icon: AlertCircle },
   };
 
-  const config = categoryConfig[category] || categoryConfig.unknown;
+  const config = categoryConfig[normalizedCategory] || categoryConfig.unknown;
   const Icon = config.icon;
+  const displayCategory = category.replace(/_/g, ' ');
   const tooltipText = confidence
-    ? `${category} failure (${(confidence * 100).toFixed(0)}% confidence)`
-    : `${category} failure`;
+    ? `${displayCategory} (${(confidence * 100).toFixed(0)}% confidence)`
+    : displayCategory;
 
   return (
     <span
@@ -212,37 +223,81 @@ function AutoHealedBadge({ details }: { details?: HealingDetails | null }) {
   );
 }
 
+function AutoHealableBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 cursor-help"
+      title="This failure can be automatically fixed by the self-healing system"
+    >
+      <Sparkles className="h-3 w-3" />
+      Auto-Healable
+    </span>
+  );
+}
+
+// Confidence Progress Bar Component
+function ConfidenceBar({ confidence, label }: { confidence: number; label?: string }) {
+  const percentage = Math.round(confidence * 100);
+  const colorClass = confidence >= 0.8 ? 'bg-green-500' : confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500';
+
+  return (
+    <div className="space-y-1">
+      {label && (
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-medium">{percentage}%</span>
+        </div>
+      )}
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-300', colorClass)}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // AI Analysis Section Component
 function AIAnalysisSection({ run }: { run: ScheduleRun }) {
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const hasAIAnalysis = run.ai_analysis || run.failure_category || run.is_flaky;
 
   if (!hasAIAnalysis) return null;
 
   return (
     <div className="mt-3 border-t pt-3">
-      <div className="flex items-center gap-2 mb-2">
-        <Brain className="h-4 w-4 text-primary" />
-        <span className="text-xs font-semibold text-primary">AI Analysis</span>
-        {run.ai_analysis?.confidence && (
-          <span className="text-xs text-muted-foreground">
-            ({(run.ai_analysis.confidence * 100).toFixed(0)}% confidence)
-          </span>
-        )}
+      {/* Header with badges */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary" />
+          <span className="text-xs font-semibold text-primary">AI Analysis</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {run.ai_analysis?.auto_healable && <AutoHealableBadge />}
+          {run.auto_healed && <AutoHealedBadge details={run.healing_details} />}
+        </div>
       </div>
 
-      {/* Summary */}
+      {/* Confidence Bar */}
+      {run.ai_analysis?.confidence && (
+        <div className="mb-3">
+          <ConfidenceBar confidence={run.ai_analysis.confidence} label="Analysis Confidence" />
+        </div>
+      )}
+
+      {/* Summary - prominent display */}
       {run.ai_analysis?.summary && (
-        <div className="mb-2">
-          <div className="text-xs font-medium text-muted-foreground mb-1">Summary</div>
-          <div className="text-xs bg-muted/50 p-2 rounded">
-            {run.ai_analysis.summary}
+        <div className="mb-3">
+          <div className="text-xs bg-muted/50 p-3 rounded-lg border border-border">
+            <p className="text-sm font-medium">{run.ai_analysis.summary}</p>
           </div>
         </div>
       )}
 
       {/* Root Cause */}
       {run.ai_analysis?.root_cause && (
-        <div className="mb-2">
+        <div className="mb-3">
           <div className="text-xs font-medium text-red-500 mb-1">Root Cause</div>
           <div className="text-xs bg-red-500/5 p-2 rounded border border-red-500/20">
             {run.ai_analysis.root_cause}
@@ -250,22 +305,49 @@ function AIAnalysisSection({ run }: { run: ScheduleRun }) {
         </div>
       )}
 
-      {/* Suggested Fix */}
+      {/* Suggested Fix - callout style */}
       {run.ai_analysis?.suggested_fix && (
-        <div className="mb-2">
+        <div className="mb-3">
           <div className="flex items-center gap-1 text-xs font-medium text-emerald-500 mb-1">
             <Sparkles className="h-3 w-3" />
             Suggested Fix
           </div>
-          <div className="text-xs bg-emerald-500/5 p-2 rounded border border-emerald-500/20">
-            {run.ai_analysis.suggested_fix}
+          <div className="text-xs bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/20">
+            <code className="text-emerald-700 dark:text-emerald-300 block whitespace-pre-wrap font-mono text-xs">
+              {run.ai_analysis.suggested_fix}
+            </code>
           </div>
+        </div>
+      )}
+
+      {/* Detailed Analysis - expandable */}
+      {run.ai_analysis?.detailed_analysis && (
+        <div className="mb-3">
+          <button
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetailedAnalysis(!showDetailedAnalysis);
+            }}
+          >
+            {showDetailedAnalysis ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            Detailed Analysis
+          </button>
+          {showDetailedAnalysis && (
+            <div className="text-xs bg-muted/30 p-2 rounded border border-border mt-1 whitespace-pre-wrap">
+              {run.ai_analysis.detailed_analysis}
+            </div>
+          )}
         </div>
       )}
 
       {/* Similar Failures */}
       {run.ai_analysis?.similar_failures && run.ai_analysis.similar_failures.length > 0 && (
-        <div className="mb-2">
+        <div className="mb-3">
           <div className="text-xs font-medium text-muted-foreground mb-1">
             Similar Past Failures
           </div>
@@ -279,7 +361,7 @@ function AIAnalysisSection({ run }: { run: ScheduleRun }) {
 
       {/* Auto-Healing Details */}
       {run.auto_healed && run.healing_details && (
-        <div className="mb-2">
+        <div className="mb-3">
           <div className="flex items-center gap-1 text-xs font-medium text-emerald-500 mb-1">
             <Wrench className="h-3 w-3" />
             Auto-Healing Applied
@@ -300,7 +382,7 @@ function AIAnalysisSection({ run }: { run: ScheduleRun }) {
 
       {/* Flaky Details */}
       {run.is_flaky && run.flaky_score && run.flaky_score > 0 && (
-        <div className="flex items-center gap-2 mt-2 p-2 bg-orange-500/5 rounded border border-orange-500/20">
+        <div className="flex items-center gap-2 p-2 bg-orange-500/5 rounded border border-orange-500/20">
           <TrendingUp className="h-4 w-4 text-orange-500" />
           <div className="text-xs">
             <span className="font-medium text-orange-500">Flaky Test Detected</span>
@@ -332,7 +414,7 @@ function RunRow({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const hasDetails = run.error_message || run.tests_total > 0 || run.ai_analysis || run.is_flaky || run.failure_category;
-  const hasAIInsights = run.ai_analysis || run.is_flaky || run.failure_category || run.auto_healed;
+  const hasAIInsights = !!(run.ai_analysis || run.is_flaky || run.failure_category || run.auto_healed);
 
   return (
     <div className="border-b last:border-0">
@@ -374,6 +456,9 @@ function RunRow({
                 category={run.failure_category}
                 confidence={run.failure_confidence}
               />
+            )}
+            {run.ai_analysis?.auto_healable && !run.auto_healed && (
+              <AutoHealableBadge />
             )}
             {run.auto_healed && (
               <AutoHealedBadge details={run.healing_details} />

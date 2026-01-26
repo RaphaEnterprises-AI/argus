@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Github,
   GitlabIcon,
@@ -19,7 +20,6 @@ import {
   Bug,
   Video,
   BarChart3,
-  Database,
   AlertTriangle,
   Loader2,
   Key,
@@ -30,9 +30,28 @@ import {
   MessageSquare,
   CircleDot,
   ListTodo,
+  XCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from '@/lib/hooks/useToast';
+import {
+  useIntegrations,
+  useIntegrationStats,
+  useConnectIntegration,
+  useDisconnectIntegration,
+  useTestIntegration,
+  useSyncIntegration,
+  useSyncAllIntegrations,
+  type IntegrationPlatform,
+  type Integration,
+  type ConnectIntegrationRequest,
+} from '@/lib/hooks/use-integrations';
+
+// ============================================================================
+// Static Configuration Examples
+// ============================================================================
 
 const GITHUB_ACTIONS_YAML = `name: Argus E2E Tests
 
@@ -190,185 +209,213 @@ const DISCORD_WEBHOOK = `// Discord Webhook Configuration
   }
 }`;
 
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  connected: boolean;
-  configExample: string;
-}
+// ============================================================================
+// Platform Metadata (icons, colors, config examples, etc.)
+// ============================================================================
 
-const integrations: Integration[] = [
-  {
-    id: 'github',
-    name: 'GitHub Actions',
-    description: 'Run Argus tests on PRs and get results as check status',
-    icon: Github,
-    connected: true,
-    configExample: GITHUB_ACTIONS_YAML,
-  },
-  {
-    id: 'gitlab',
-    name: 'GitLab CI/CD',
-    description: 'Integrate Argus with GitLab merge request pipelines',
-    icon: GitlabIcon,
-    connected: false,
-    configExample: GITLAB_CI_YAML,
-  },
-  {
-    id: 'slack',
-    name: 'Slack Notifications',
-    description: 'Get Argus test results and alerts in Slack channels',
-    icon: Slack,
-    connected: true,
-    configExample: '',
-  },
-  {
-    id: 'discord',
-    name: 'Discord Notifications',
-    description: 'Send test alerts and reports to Discord channels',
-    icon: MessageSquare,
-    connected: false,
-    configExample: DISCORD_WEBHOOK,
-  },
-  {
-    id: 'jira',
-    name: 'Jira',
-    description: 'Auto-create Jira issues for test failures and track fixes',
-    icon: CircleDot,
-    connected: false,
-    configExample: JIRA_CONFIG,
-  },
-  {
-    id: 'linear',
-    name: 'Linear',
-    description: 'Create Linear issues and track testing in your cycles',
-    icon: ListTodo,
-    connected: true,
-    configExample: LINEAR_CONFIG,
-  },
-  {
-    id: 'webhook',
-    name: 'Webhooks (n8n/Zapier)',
-    description: 'Trigger Argus tests from any automation platform',
-    icon: Webhook,
-    connected: false,
-    configExample: WEBHOOK_EXAMPLE,
-  },
-];
-
-// Observability Platform Integrations
-interface ObservabilityPlatform {
-  id: string;
-  name: string;
-  description: string;
+interface PlatformMetadata {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
-  connected: boolean;
-  lastSync?: string;
-  dataPoints?: number;
-  authType: 'oauth' | 'api_key';
-  features: string[];
+  configExample?: string;
+  defaultFeatures: string[];
 }
 
-const observabilityPlatforms: ObservabilityPlatform[] = [
-  {
-    id: 'datadog',
-    name: 'Datadog',
-    description: 'RUM, APM, and Log Analytics',
+const platformMetadata: Record<IntegrationPlatform, PlatformMetadata> = {
+  // CI/CD & Notifications
+  github: {
+    icon: Github,
+    color: 'gray',
+    configExample: GITHUB_ACTIONS_YAML,
+    defaultFeatures: ['PR Status Checks', 'Action Workflows', 'Commit Status'],
+  },
+  gitlab: {
+    icon: GitlabIcon,
+    color: 'orange',
+    configExample: GITLAB_CI_YAML,
+    defaultFeatures: ['MR Pipelines', 'CI/CD Integration', 'Artifacts'],
+  },
+  slack: {
+    icon: Slack,
+    color: 'purple',
+    defaultFeatures: ['Test Alerts', 'Daily Reports', 'Failure Notifications'],
+  },
+  discord: {
+    icon: MessageSquare,
+    color: 'indigo',
+    configExample: DISCORD_WEBHOOK,
+    defaultFeatures: ['Webhook Notifications', 'Rich Embeds', 'Mentions'],
+  },
+  jira: {
+    icon: CircleDot,
+    color: 'blue',
+    configExample: JIRA_CONFIG,
+    defaultFeatures: ['Auto-create Issues', 'Status Sync', 'Field Mapping'],
+  },
+  linear: {
+    icon: ListTodo,
+    color: 'indigo',
+    configExample: LINEAR_CONFIG,
+    defaultFeatures: ['Auto-create Issues', 'Cycle Tracking', 'Run Links'],
+  },
+  webhook: {
+    icon: Webhook,
+    color: 'green',
+    configExample: WEBHOOK_EXAMPLE,
+    defaultFeatures: ['Custom Triggers', 'n8n/Zapier', 'REST API'],
+  },
+  // Deployment Platforms
+  vercel: {
+    icon: Zap,
+    color: 'gray',
+    defaultFeatures: ['Preview Deployments', 'Production Testing', 'Edge Functions'],
+  },
+  netlify: {
+    icon: Zap,
+    color: 'teal',
+    defaultFeatures: ['Deploy Previews', 'Build Hooks', 'Serverless Functions'],
+  },
+  // Observability Platforms
+  datadog: {
     icon: Activity,
     color: 'purple',
-    connected: true,
-    lastSync: '2 min ago',
-    dataPoints: 12847,
-    authType: 'api_key',
-    features: ['Session Replay', 'Core Web Vitals', 'Error Tracking', 'APM Traces'],
+    defaultFeatures: ['Session Replay', 'Core Web Vitals', 'Error Tracking', 'APM Traces'],
   },
-  {
-    id: 'sentry',
-    name: 'Sentry',
-    description: 'Error Tracking & Performance',
+  sentry: {
     icon: Bug,
     color: 'pink',
-    connected: true,
-    lastSync: '5 min ago',
-    dataPoints: 3421,
-    authType: 'oauth',
-    features: ['Error Aggregation', 'Stack Traces', 'Release Tracking', 'Session Replay'],
+    defaultFeatures: ['Error Aggregation', 'Stack Traces', 'Release Tracking', 'Session Replay'],
   },
-  {
-    id: 'newrelic',
-    name: 'New Relic',
-    description: 'Full-Stack Observability',
+  newrelic: {
     icon: LineChart,
     color: 'green',
-    connected: false,
-    authType: 'api_key',
-    features: ['Browser Monitoring', 'APM', 'Infrastructure', 'Logs'],
+    defaultFeatures: ['Browser Monitoring', 'APM', 'Infrastructure', 'Logs'],
   },
-  {
-    id: 'fullstory',
-    name: 'FullStory',
-    description: 'Digital Experience Intelligence',
+  fullstory: {
     icon: Video,
     color: 'blue',
-    connected: true,
-    lastSync: '1 min ago',
-    dataPoints: 5632,
-    authType: 'api_key',
-    features: ['Session Replay', 'Rage Clicks', 'Frustration Signals', 'Heatmaps'],
+    defaultFeatures: ['Session Replay', 'Rage Clicks', 'Frustration Signals', 'Heatmaps'],
   },
-  {
-    id: 'posthog',
-    name: 'PostHog',
-    description: 'Product Analytics & Session Recording',
+  posthog: {
     icon: BarChart3,
     color: 'orange',
-    connected: false,
-    authType: 'api_key',
-    features: ['Product Analytics', 'Session Recording', 'Feature Flags', 'Funnels'],
+    defaultFeatures: ['Product Analytics', 'Session Recording', 'Feature Flags', 'Funnels'],
   },
-  {
-    id: 'logrocket',
-    name: 'LogRocket',
-    description: 'Session Replay & Error Tracking',
+  logrocket: {
     icon: Video,
     color: 'indigo',
-    connected: false,
-    authType: 'api_key',
-    features: ['Session Replay', 'Console Logs', 'Network Requests', 'Redux State'],
+    defaultFeatures: ['Session Replay', 'Console Logs', 'Network Requests', 'Redux State'],
   },
-  {
-    id: 'amplitude',
-    name: 'Amplitude',
-    description: 'Product & Behavioral Analytics',
+  amplitude: {
     icon: LineChart,
     color: 'blue',
-    connected: false,
-    authType: 'api_key',
-    features: ['User Journeys', 'Cohort Analysis', 'Funnel Analytics', 'Retention'],
+    defaultFeatures: ['User Journeys', 'Cohort Analysis', 'Funnel Analytics', 'Retention'],
   },
-  {
-    id: 'mixpanel',
-    name: 'Mixpanel',
-    description: 'Product Analytics',
+  mixpanel: {
     icon: BarChart3,
     color: 'purple',
-    connected: false,
-    authType: 'api_key',
-    features: ['Event Tracking', 'User Flows', 'A/B Testing', 'Retention Analysis'],
+    defaultFeatures: ['Event Tracking', 'User Flows', 'A/B Testing', 'Retention Analysis'],
   },
-];
+};
+
+// Categorize platforms
+const cicdPlatforms: IntegrationPlatform[] = ['github', 'gitlab', 'slack', 'discord', 'jira', 'linear', 'webhook'];
+const deploymentPlatforms: IntegrationPlatform[] = ['vercel', 'netlify'];
+const observabilityPlatforms: IntegrationPlatform[] = ['datadog', 'sentry', 'newrelic', 'fullstory', 'posthog', 'logrocket', 'amplitude', 'mixpanel'];
+
+// Helper to get platform display info
+function getPlatformDisplayInfo(platform: IntegrationPlatform) {
+  const meta = platformMetadata[platform];
+  const names: Record<IntegrationPlatform, string> = {
+    github: 'GitHub Actions',
+    gitlab: 'GitLab CI/CD',
+    slack: 'Slack Notifications',
+    discord: 'Discord Notifications',
+    jira: 'Jira',
+    linear: 'Linear',
+    webhook: 'Webhooks (n8n/Zapier)',
+    vercel: 'Vercel',
+    netlify: 'Netlify',
+    datadog: 'Datadog',
+    sentry: 'Sentry',
+    newrelic: 'New Relic',
+    fullstory: 'FullStory',
+    posthog: 'PostHog',
+    logrocket: 'LogRocket',
+    amplitude: 'Amplitude',
+    mixpanel: 'Mixpanel',
+  };
+  const descriptions: Record<IntegrationPlatform, string> = {
+    github: 'Run Argus tests on PRs and get results as check status',
+    gitlab: 'Integrate Argus with GitLab merge request pipelines',
+    slack: 'Get Argus test results and alerts in Slack channels',
+    discord: 'Send test alerts and reports to Discord channels',
+    jira: 'Auto-create Jira issues for test failures and track fixes',
+    linear: 'Create Linear issues and track testing in your cycles',
+    webhook: 'Trigger Argus tests from any automation platform',
+    vercel: 'Test preview deployments and production on Vercel',
+    netlify: 'Test deploy previews and production on Netlify',
+    datadog: 'RUM, APM, and Log Analytics',
+    sentry: 'Error Tracking & Performance',
+    newrelic: 'Full-Stack Observability',
+    fullstory: 'Digital Experience Intelligence',
+    posthog: 'Product Analytics & Session Recording',
+    logrocket: 'Session Replay & Error Tracking',
+    amplitude: 'Product & Behavioral Analytics',
+    mixpanel: 'Product Analytics',
+  };
+  return {
+    name: names[platform],
+    description: descriptions[platform],
+    ...meta,
+  };
+}
+
+// Format relative time
+function formatRelativeTime(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export default function IntegrationsPage() {
-  const [selectedIntegration, setSelectedIntegration] = useState<Integration>(integrations[0]);
-  const [selectedPlatform, setSelectedPlatform] = useState<ObservabilityPlatform | null>(null);
+  // Data from API
+  const { data: integrationsData, isLoading, error } = useIntegrations();
+  const stats = useIntegrationStats();
+
+  // Mutations
+  const connectMutation = useConnectIntegration();
+  const disconnectMutation = useDisconnectIntegration();
+  const testMutation = useTestIntegration();
+  const syncMutation = useSyncIntegration();
+  const syncAllMutation = useSyncAllIntegrations();
+
+  // Local UI state
+  const [selectedPlatform, setSelectedPlatform] = useState<IntegrationPlatform | null>(null);
+  const [selectedCicdPlatform, setSelectedCicdPlatform] = useState<IntegrationPlatform>('github');
   const [copied, setCopied] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'cicd' | 'observability'>('observability');
+
+  // Form state for connection
+  const [formData, setFormData] = useState<ConnectIntegrationRequest>({});
+
+  // Get integration data for a platform
+  const getIntegration = useCallback((platform: IntegrationPlatform): Integration | undefined => {
+    return integrationsData?.integrations.find(i => i.platform === platform);
+  }, [integrationsData]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -376,22 +423,115 @@ export default function IntegrationsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleConnect = (platform: ObservabilityPlatform) => {
-    setIsConnecting(true);
-    // Simulate OAuth/API key connection
-    setTimeout(() => {
-      setIsConnecting(false);
+  const handleConnect = async (platform: IntegrationPlatform) => {
+    try {
+      const result = await connectMutation.mutateAsync({ platform, config: formData });
+
+      // If OAuth, redirect to OAuth URL
+      if (result.oauth_url) {
+        window.location.href = result.oauth_url;
+        return;
+      }
+
+      toast.success({
+        title: 'Integration connected',
+        description: result.message,
+      });
       setSelectedPlatform(null);
-    }, 2000);
+      setFormData({});
+    } catch (err) {
+      toast.error({
+        title: 'Connection failed',
+        description: err instanceof Error ? err.message : 'Failed to connect integration',
+      });
+    }
   };
 
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => setIsSyncing(false), 3000);
+  const handleDisconnect = async (platform: IntegrationPlatform) => {
+    try {
+      const result = await disconnectMutation.mutateAsync(platform);
+      toast.success({
+        title: 'Integration disconnected',
+        description: result.message,
+      });
+      setSelectedPlatform(null);
+    } catch (err) {
+      toast.error({
+        title: 'Disconnect failed',
+        description: err instanceof Error ? err.message : 'Failed to disconnect integration',
+      });
+    }
   };
 
-  const connectedPlatforms = observabilityPlatforms.filter(p => p.connected);
-  const totalDataPoints = connectedPlatforms.reduce((acc, p) => acc + (p.dataPoints || 0), 0);
+  const handleTest = async (platform: IntegrationPlatform) => {
+    try {
+      const result = await testMutation.mutateAsync(platform);
+      if (result.success) {
+        toast.success({
+          title: 'Connection successful',
+          description: result.details?.latency_ms
+            ? `Latency: ${result.details.latency_ms}ms`
+            : result.message,
+        });
+      } else {
+        toast.error({
+          title: 'Connection test failed',
+          description: result.message,
+        });
+      }
+    } catch (err) {
+      toast.error({
+        title: 'Test failed',
+        description: err instanceof Error ? err.message : 'Failed to test connection',
+      });
+    }
+  };
+
+  const handleSync = async (platform: IntegrationPlatform) => {
+    try {
+      const result = await syncMutation.mutateAsync(platform);
+      toast.success({
+        title: 'Sync started',
+        description: result.message,
+      });
+    } catch (err) {
+      toast.error({
+        title: 'Sync failed',
+        description: err instanceof Error ? err.message : 'Failed to sync integration',
+      });
+    }
+  };
+
+  const handleSyncAll = async () => {
+    try {
+      const result = await syncAllMutation.mutateAsync();
+      toast.success({
+        title: 'Syncing all integrations',
+        description: result.message,
+      });
+    } catch (err) {
+      toast.error({
+        title: 'Sync failed',
+        description: err instanceof Error ? err.message : 'Failed to sync all integrations',
+      });
+    }
+  };
+
+  // Selected integration data for modals
+  const selectedIntegration = selectedPlatform ? getIntegration(selectedPlatform) : null;
+  const selectedDisplayInfo = selectedPlatform ? getPlatformDisplayInfo(selectedPlatform) : null;
+
+  // Selected CI/CD integration
+  const selectedCicdIntegration = getIntegration(selectedCicdPlatform);
+  const selectedCicdDisplayInfo = getPlatformDisplayInfo(selectedCicdPlatform);
+
+  // Calculate stats from real data
+  const connectedObservability = observabilityPlatforms.filter(p => getIntegration(p)?.connected).length;
+  const totalDataPoints = integrationsData?.integrations
+    .filter(i => observabilityPlatforms.includes(i.platform as IntegrationPlatform))
+    .reduce((sum, i) => sum + (i.data_points || 0), 0) || 0;
+
+  const isSyncing = syncAllMutation.isPending || stats.syncing > 0;
 
   return (
     <div className="flex min-h-screen overflow-x-hidden">
@@ -408,7 +548,7 @@ export default function IntegrationsPage() {
               Connect observability platforms and CI/CD tools
             </p>
           </div>
-          <Button onClick={handleSync} disabled={isSyncing}>
+          <Button onClick={handleSyncAll} disabled={isSyncing}>
             {isSyncing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -424,6 +564,23 @@ export default function IntegrationsPage() {
         </header>
 
         <div className="p-6 space-y-6">
+          {/* Error State */}
+          {error && (
+            <Card className="border-destructive bg-destructive/5">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  <div>
+                    <p className="font-medium text-destructive">Failed to load integrations</p>
+                    <p className="text-sm text-muted-foreground">
+                      {error instanceof Error ? error.message : 'An error occurred'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Tab Navigation */}
           <div className="flex gap-2 border-b">
             <button
@@ -475,80 +632,118 @@ export default function IntegrationsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-primary">{totalDataPoints.toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">data points synced</div>
+                        {isLoading ? (
+                          <Skeleton className="h-10 w-24" />
+                        ) : (
+                          <>
+                            <div className="text-3xl font-bold text-primary">{totalDataPoints.toLocaleString()}</div>
+                            <div className="text-sm text-muted-foreground">data points synced</div>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-4 mt-4">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">{connectedPlatforms.length} platforms connected</span>
+                        {isLoading ? (
+                          <Skeleton className="h-4 w-32" />
+                        ) : (
+                          <span className="text-sm">{connectedObservability} platforms connected</span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-blue-500" />
-                        <span className="text-sm">Real-time sync enabled</span>
-                      </div>
+                      {stats.syncing > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                          <span className="text-sm">{stats.syncing} syncing</span>
+                        </div>
+                      )}
+                      {stats.syncing === 0 && connectedObservability > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-blue-500" />
+                          <span className="text-sm">Real-time sync enabled</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Observability Platforms Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {observabilityPlatforms.map((platform, index) => (
-                    <motion.button
-                      key={platform.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      onClick={() => setSelectedPlatform(platform)}
-                      className={cn(
-                        'p-4 rounded-lg border text-left transition-all hover:shadow-md',
-                        platform.connected
-                          ? 'border-green-500/30 bg-green-500/5'
-                          : 'hover:bg-accent/50'
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={cn(
-                          'p-2 rounded-lg',
-                          platform.connected
-                            ? `bg-${platform.color}-500/10`
-                            : 'bg-muted'
-                        )}>
-                          <platform.icon className={cn(
-                            'h-5 w-5',
-                            platform.connected ? `text-${platform.color}-500` : 'text-muted-foreground'
-                          )} />
-                        </div>
-                        {platform.connected ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                            Not connected
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-medium">{platform.name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{platform.description}</div>
-                      {platform.connected && (
-                        <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
-                          <span className="text-green-500">{platform.dataPoints?.toLocaleString()} records</span>
-                          <span className="text-muted-foreground">{platform.lastSync}</span>
-                        </div>
-                      )}
-                    </motion.button>
-                  ))}
+                  {isLoading ? (
+                    // Loading skeletons
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-40 rounded-lg" />
+                    ))
+                  ) : (
+                    observabilityPlatforms.map((platform, index) => {
+                      const integration = getIntegration(platform);
+                      const displayInfo = getPlatformDisplayInfo(platform);
+                      const IconComponent = displayInfo.icon;
+                      const isConnected = integration?.connected || false;
+                      const isSyncingPlatform = integration?.sync_status === 'syncing';
+
+                      return (
+                        <motion.button
+                          key={platform}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => setSelectedPlatform(platform)}
+                          className={cn(
+                            'p-4 rounded-lg border text-left transition-all hover:shadow-md',
+                            isConnected
+                              ? 'border-green-500/30 bg-green-500/5'
+                              : 'hover:bg-accent/50'
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className={cn(
+                              'p-2 rounded-lg',
+                              isConnected
+                                ? `bg-${displayInfo.color}-500/10`
+                                : 'bg-muted'
+                            )}>
+                              <IconComponent className={cn(
+                                'h-5 w-5',
+                                isConnected ? `text-${displayInfo.color}-500` : 'text-muted-foreground'
+                              )} />
+                            </div>
+                            {isSyncingPlatform ? (
+                              <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                            ) : isConnected ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                Not connected
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-medium">{displayInfo.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{displayInfo.description}</div>
+                          {isConnected && (
+                            <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
+                              <span className="text-green-500">{(integration?.data_points || 0).toLocaleString()} records</span>
+                              <span className="text-muted-foreground">{formatRelativeTime(integration?.last_sync_at)}</span>
+                            </div>
+                          )}
+                        </motion.button>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Platform Connection Modal */}
                 <AnimatePresence>
-                  {selectedPlatform && (
+                  {selectedPlatform && selectedDisplayInfo && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
-                      onClick={() => setSelectedPlatform(null)}
+                      onClick={() => {
+                        setSelectedPlatform(null);
+                        setFormData({});
+                      }}
                     >
                       <motion.div
                         initial={{ scale: 0.95, opacity: 0 }}
@@ -558,16 +753,16 @@ export default function IntegrationsPage() {
                         className="bg-card border rounded-xl shadow-xl w-full max-w-lg p-6"
                       >
                         <div className="flex items-center gap-3 mb-6">
-                          <div className={cn('p-3 rounded-lg', `bg-${selectedPlatform.color}-500/10`)}>
-                            <selectedPlatform.icon className={cn('h-6 w-6', `text-${selectedPlatform.color}-500`)} />
+                          <div className={cn('p-3 rounded-lg', `bg-${selectedDisplayInfo.color}-500/10`)}>
+                            <selectedDisplayInfo.icon className={cn('h-6 w-6', `text-${selectedDisplayInfo.color}-500`)} />
                           </div>
                           <div>
-                            <h3 className="text-lg font-semibold">{selectedPlatform.name}</h3>
-                            <p className="text-sm text-muted-foreground">{selectedPlatform.description}</p>
+                            <h3 className="text-lg font-semibold">{selectedDisplayInfo.name}</h3>
+                            <p className="text-sm text-muted-foreground">{selectedDisplayInfo.description}</p>
                           </div>
                         </div>
 
-                        {selectedPlatform.connected ? (
+                        {selectedIntegration?.connected ? (
                           <div className="space-y-4">
                             <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
                               <div className="flex items-center gap-2 text-green-500 font-medium">
@@ -575,14 +770,19 @@ export default function IntegrationsPage() {
                                 Connected
                               </div>
                               <p className="text-sm text-muted-foreground mt-1">
-                                Last synced: {selectedPlatform.lastSync}
+                                Last synced: {formatRelativeTime(selectedIntegration.last_sync_at)}
                               </p>
+                              {selectedIntegration.data_points && (
+                                <p className="text-sm text-muted-foreground">
+                                  {selectedIntegration.data_points.toLocaleString()} data points synced
+                                </p>
+                              )}
                             </div>
 
                             <div>
                               <h4 className="font-medium mb-2">Synced Features</h4>
                               <div className="flex flex-wrap gap-2">
-                                {selectedPlatform.features.map((feature) => (
+                                {(selectedIntegration.features || selectedDisplayInfo.defaultFeatures).map((feature) => (
                                   <span
                                     key={feature}
                                     className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary"
@@ -594,23 +794,74 @@ export default function IntegrationsPage() {
                             </div>
 
                             <div className="flex gap-2">
-                              <Button variant="outline" className="flex-1" onClick={() => setSelectedPlatform(null)}>
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => handleSync(selectedPlatform)}
+                                disabled={syncMutation.isPending || selectedIntegration.sync_status === 'syncing'}
+                              >
+                                {syncMutation.isPending || selectedIntegration.sync_status === 'syncing' ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Syncing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Sync Now
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleTest(selectedPlatform)}
+                                disabled={testMutation.isPending}
+                              >
+                                {testMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  'Test'
+                                )}
+                              </Button>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => {
+                                  setSelectedPlatform(null);
+                                  setFormData({});
+                                }}
+                              >
                                 Close
                               </Button>
-                              <Button variant="destructive" className="flex-1">
-                                Disconnect
+                              <Button
+                                variant="destructive"
+                                className="flex-1"
+                                onClick={() => handleDisconnect(selectedPlatform)}
+                                disabled={disconnectMutation.isPending}
+                              >
+                                {disconnectMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Disconnecting...
+                                  </>
+                                ) : (
+                                  'Disconnect'
+                                )}
                               </Button>
                             </div>
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {selectedPlatform.authType === 'oauth' ? (
+                            {selectedIntegration?.auth_type === 'oauth' ? (
                               <Button
                                 className="w-full"
                                 onClick={() => handleConnect(selectedPlatform)}
-                                disabled={isConnecting}
+                                disabled={connectMutation.isPending}
                               >
-                                {isConnecting ? (
+                                {connectMutation.isPending ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Connecting...
@@ -631,8 +882,11 @@ export default function IntegrationsPage() {
                                       type={showApiKey ? 'text' : 'password'}
                                       placeholder="Enter your API key"
                                       className="pr-10"
+                                      value={formData.api_key || ''}
+                                      onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
                                     />
                                     <button
+                                      type="button"
                                       onClick={() => setShowApiKey(!showApiKey)}
                                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                     >
@@ -640,7 +894,7 @@ export default function IntegrationsPage() {
                                     </button>
                                   </div>
                                 </div>
-                                {selectedPlatform.id === 'datadog' && (
+                                {selectedPlatform === 'datadog' && (
                                   <>
                                     <div>
                                       <label className="text-sm font-medium">Application Key</label>
@@ -648,6 +902,8 @@ export default function IntegrationsPage() {
                                         type="password"
                                         placeholder="Enter your application key"
                                         className="mt-1"
+                                        value={formData.application_key || ''}
+                                        onChange={(e) => setFormData({ ...formData, application_key: e.target.value })}
                                       />
                                     </div>
                                     <div>
@@ -655,6 +911,8 @@ export default function IntegrationsPage() {
                                       <Input
                                         placeholder="datadoghq.com"
                                         className="mt-1"
+                                        value={formData.site || ''}
+                                        onChange={(e) => setFormData({ ...formData, site: e.target.value })}
                                       />
                                     </div>
                                   </>
@@ -662,9 +920,9 @@ export default function IntegrationsPage() {
                                 <Button
                                   className="w-full"
                                   onClick={() => handleConnect(selectedPlatform)}
-                                  disabled={isConnecting}
+                                  disabled={connectMutation.isPending || !formData.api_key}
                                 >
-                                  {isConnecting ? (
+                                  {connectMutation.isPending ? (
                                     <>
                                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                       Connecting...
@@ -682,7 +940,7 @@ export default function IntegrationsPage() {
                             <div>
                               <h4 className="font-medium mb-2">What we&apos;ll sync</h4>
                               <div className="flex flex-wrap gap-2">
-                                {selectedPlatform.features.map((feature) => (
+                                {selectedDisplayInfo.defaultFeatures.map((feature) => (
                                   <span
                                     key={feature}
                                     className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground"
@@ -718,14 +976,14 @@ export default function IntegrationsPage() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="p-4 rounded-lg border">
                         <Video className="h-6 w-6 text-blue-500 mb-2" />
-                        <h4 className="font-medium">Session → Test</h4>
+                        <h4 className="font-medium">Session to Test</h4>
                         <p className="text-xs text-muted-foreground mt-1">
                           Converts real user sessions into automated tests
                         </p>
                       </div>
                       <div className="p-4 rounded-lg border">
                         <Bug className="h-6 w-6 text-red-500 mb-2" />
-                        <h4 className="font-medium">Error → Regression</h4>
+                        <h4 className="font-medium">Error to Regression</h4>
                         <p className="text-xs text-muted-foreground mt-1">
                           Auto-generates tests to prevent error recurrence
                         </p>
@@ -758,313 +1016,471 @@ export default function IntegrationsPage() {
               >
                 {/* CI/CD Integration Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                  {integrations.map((integration) => (
-                    <button
-                      key={integration.id}
-                      onClick={() => setSelectedIntegration(integration)}
-                      className={cn(
-                        'p-4 rounded-lg border text-left transition-colors',
-                        selectedIntegration.id === integration.id
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:bg-accent/50'
-                      )}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={cn(
-                          'p-2 rounded-lg',
-                          integration.connected ? 'bg-green-500/10' : 'bg-muted'
-                        )}>
-                          <integration.icon className={cn(
-                            'h-5 w-5',
-                            integration.connected ? 'text-green-500' : 'text-muted-foreground'
-                          )} />
-                        </div>
-                        {integration.connected && (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        )}
-                      </div>
-                      <div className="font-medium">{integration.name}</div>
-                      <div className="text-sm text-muted-foreground line-clamp-2">
-                        {integration.description}
-                      </div>
-                    </button>
-                  ))}
+                  {isLoading ? (
+                    Array.from({ length: 7 }).map((_, i) => (
+                      <Skeleton key={i} className="h-32 rounded-lg" />
+                    ))
+                  ) : (
+                    cicdPlatforms.map((platform) => {
+                      const integration = getIntegration(platform);
+                      const displayInfo = getPlatformDisplayInfo(platform);
+                      const IconComponent = displayInfo.icon;
+                      const isConnected = integration?.connected || false;
+
+                      return (
+                        <button
+                          key={platform}
+                          onClick={() => setSelectedCicdPlatform(platform)}
+                          className={cn(
+                            'p-4 rounded-lg border text-left transition-colors',
+                            selectedCicdPlatform === platform
+                              ? 'border-primary bg-primary/5'
+                              : 'hover:bg-accent/50'
+                          )}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={cn(
+                              'p-2 rounded-lg',
+                              isConnected ? 'bg-green-500/10' : 'bg-muted'
+                            )}>
+                              <IconComponent className={cn(
+                                'h-5 w-5',
+                                isConnected ? 'text-green-500' : 'text-muted-foreground'
+                              )} />
+                            </div>
+                            {isConnected && (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                          <div className="font-medium">{displayInfo.name}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-2">
+                            {displayInfo.description}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
 
-          {/* Configuration */}
-          <div className="grid grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <selectedIntegration.icon className="h-5 w-5" />
-                  {selectedIntegration.name} Setup
-                </CardTitle>
-                <CardDescription>{selectedIntegration.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedIntegration.id === 'slack' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Webhook URL</label>
-                      <Input
-                        placeholder="https://hooks.slack.com/services/..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Channel</label>
-                      <Input placeholder="#engineering-alerts" className="mt-1" />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button>Connect Slack</Button>
-                      <Button variant="outline">Test Connection</Button>
-                    </div>
-                  </div>
-                ) : selectedIntegration.id === 'discord' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Discord Webhook URL</label>
-                      <Input
-                        placeholder="https://discord.com/api/webhooks/..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Bot Name (optional)</label>
-                      <Input placeholder="Argus Bot" className="mt-1" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Notification Events</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" defaultChecked className="rounded" />
-                          Test Failures
-                        </label>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" className="rounded" />
-                          Test Passes
-                        </label>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" defaultChecked className="rounded" />
-                          Self-Healing Events
-                        </label>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" className="rounded" />
-                          Daily Summary
-                        </label>
+                {/* Configuration */}
+                <div className="grid grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <selectedCicdDisplayInfo.icon className="h-5 w-5" />
+                        {selectedCicdDisplayInfo.name} Setup
+                      </CardTitle>
+                      <CardDescription>{selectedCicdDisplayInfo.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {selectedCicdPlatform === 'slack' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Webhook URL</label>
+                            <Input
+                              placeholder="https://hooks.slack.com/services/..."
+                              className="mt-1"
+                              value={formData.webhook_url || ''}
+                              onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Channel</label>
+                            <Input
+                              placeholder="#engineering-alerts"
+                              className="mt-1"
+                              value={formData.channel || ''}
+                              onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleConnect(selectedCicdPlatform)}
+                              disabled={connectMutation.isPending || !formData.webhook_url}
+                            >
+                              {connectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                'Connect Slack'
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleTest(selectedCicdPlatform)}
+                              disabled={testMutation.isPending || !selectedCicdIntegration?.connected}
+                            >
+                              {testMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Test Connection'
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : selectedCicdPlatform === 'discord' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Discord Webhook URL</label>
+                            <Input
+                              placeholder="https://discord.com/api/webhooks/..."
+                              className="mt-1"
+                              value={formData.webhook_url || ''}
+                              onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Bot Name (optional)</label>
+                            <Input
+                              placeholder="Argus Bot"
+                              className="mt-1"
+                              value={formData.bot_name || ''}
+                              onChange={(e) => setFormData({ ...formData, bot_name: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Notification Events</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="rounded"
+                                  checked={formData.notify_on_failure ?? true}
+                                  onChange={(e) => setFormData({ ...formData, notify_on_failure: e.target.checked })}
+                                />
+                                Test Failures
+                              </label>
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="rounded"
+                                  checked={formData.notify_on_success ?? false}
+                                  onChange={(e) => setFormData({ ...formData, notify_on_success: e.target.checked })}
+                                />
+                                Test Passes
+                              </label>
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="rounded"
+                                  checked={formData.notify_on_healing ?? true}
+                                  onChange={(e) => setFormData({ ...formData, notify_on_healing: e.target.checked })}
+                                />
+                                Self-Healing Events
+                              </label>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleConnect(selectedCicdPlatform)}
+                              disabled={connectMutation.isPending || !formData.webhook_url}
+                            >
+                              {connectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                'Connect Discord'
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleTest(selectedCicdPlatform)}
+                              disabled={testMutation.isPending || !selectedCicdIntegration?.connected}
+                            >
+                              {testMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Test Webhook'
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : selectedCicdPlatform === 'jira' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Jira Instance URL</label>
+                            <Input
+                              placeholder="https://your-company.atlassian.net"
+                              className="mt-1"
+                              value={formData.instance_url || ''}
+                              onChange={(e) => setFormData({ ...formData, instance_url: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium">Email</label>
+                              <Input
+                                type="email"
+                                placeholder="you@company.com"
+                                className="mt-1"
+                                value={formData.email || ''}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">API Token</label>
+                              <Input
+                                type="password"
+                                placeholder="Your Jira API token"
+                                className="mt-1"
+                                value={formData.api_key || ''}
+                                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium">Project Key</label>
+                              <Input
+                                placeholder="ARGUS"
+                                className="mt-1"
+                                value={formData.project_key || ''}
+                                onChange={(e) => setFormData({ ...formData, project_key: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Issue Type</label>
+                              <select
+                                className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                                value={formData.issue_type || 'Bug'}
+                                onChange={(e) => setFormData({ ...formData, issue_type: e.target.value })}
+                              >
+                                <option>Bug</option>
+                                <option>Task</option>
+                                <option>Story</option>
+                                <option>Sub-task</option>
+                              </select>
+                            </div>
+                          </div>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              className="rounded"
+                              checked={formData.auto_create_issues ?? true}
+                              onChange={(e) => setFormData({ ...formData, auto_create_issues: e.target.checked })}
+                            />
+                            Auto-create issues on test failures
+                          </label>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleConnect(selectedCicdPlatform)}
+                              disabled={connectMutation.isPending || !formData.instance_url || !formData.api_key}
+                            >
+                              {connectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                'Connect Jira'
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleTest(selectedCicdPlatform)}
+                              disabled={testMutation.isPending || !selectedCicdIntegration?.connected}
+                            >
+                              {testMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Test Connection'
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : selectedCicdPlatform === 'linear' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Linear API Key</label>
+                            <Input
+                              type="password"
+                              placeholder="lin_api_..."
+                              className="mt-1"
+                              value={formData.api_key || ''}
+                              onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Get your API key from Linear Settings &gt; API
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium">Team</label>
+                              <Input
+                                placeholder="Team ID"
+                                className="mt-1"
+                                value={formData.team_id || ''}
+                                onChange={(e) => setFormData({ ...formData, team_id: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Default Priority</label>
+                              <select
+                                className="mt-1 w-full px-3 py-2 rounded-md border bg-background"
+                                value={formData.default_priority || 3}
+                                onChange={(e) => setFormData({ ...formData, default_priority: parseInt(e.target.value) })}
+                              >
+                                <option value="1">Urgent</option>
+                                <option value="2">High</option>
+                                <option value="3">Medium</option>
+                                <option value="4">Low</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                className="rounded"
+                                checked={formData.auto_create_issues ?? true}
+                                onChange={(e) => setFormData({ ...formData, auto_create_issues: e.target.checked })}
+                              />
+                              Auto-create issues on test failures
+                            </label>
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                className="rounded"
+                                checked={formData.link_to_runs ?? true}
+                                onChange={(e) => setFormData({ ...formData, link_to_runs: e.target.checked })}
+                              />
+                              Link issues to test runs
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleConnect(selectedCicdPlatform)}
+                              disabled={connectMutation.isPending || !formData.api_key}
+                            >
+                              {connectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                'Connect Linear'
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleTest(selectedCicdPlatform)}
+                              disabled={testMutation.isPending || !selectedCicdIntegration?.connected}
+                            >
+                              {testMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Test Connection'
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        selectedCicdDisplayInfo.configExample && (
+                          <div className="relative">
+                            <div className="absolute top-2 right-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(selectedCicdDisplayInfo.configExample!)}
+                              >
+                                {copied ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <pre className="p-4 rounded-lg bg-muted overflow-x-auto text-xs">
+                              <code>{selectedCicdDisplayInfo.configExample}</code>
+                            </pre>
+                          </div>
+                        )
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5" />
+                        SDK Usage
+                      </CardTitle>
+                      <CardDescription>
+                        Use the SDK to integrate programmatically
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="relative">
+                        <div className="absolute top-2 right-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(SDK_EXAMPLE)}
+                          >
+                            {copied ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        <pre className="p-4 rounded-lg bg-muted overflow-x-auto text-xs">
+                          <code>{SDK_EXAMPLE}</code>
+                        </pre>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button>Connect Discord</Button>
-                      <Button variant="outline">Test Webhook</Button>
-                    </div>
-                  </div>
-                ) : selectedIntegration.id === 'jira' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Jira Instance URL</label>
-                      <Input
-                        placeholder="https://your-company.atlassian.net"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Email</label>
-                        <Input
-                          type="email"
-                          placeholder="you@company.com"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">API Token</label>
-                        <Input
-                          type="password"
-                          placeholder="Your Jira API token"
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Project Key</label>
-                        <Input placeholder="ARGUS" className="mt-1" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Issue Type</label>
-                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
-                          <option>Bug</option>
-                          <option>Task</option>
-                          <option>Story</option>
-                          <option>Sub-task</option>
-                        </select>
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      Auto-create issues on test failures
-                    </label>
-                    <div className="flex gap-2">
-                      <Button>Connect Jira</Button>
-                      <Button variant="outline">Test Connection</Button>
-                    </div>
-                  </div>
-                ) : selectedIntegration.id === 'linear' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Linear API Key</label>
-                      <Input
-                        type="password"
-                        placeholder="lin_api_..."
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Get your API key from Linear Settings &gt; API
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Team</label>
-                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
-                          <option value="">Select team...</option>
-                          <option value="eng">Engineering</option>
-                          <option value="qa">QA</option>
-                          <option value="product">Product</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Default Priority</label>
-                        <select className="mt-1 w-full px-3 py-2 rounded-md border bg-background">
-                          <option value="1">Urgent</option>
-                          <option value="2">High</option>
-                          <option value="3" selected>Medium</option>
-                          <option value="4">Low</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" defaultChecked className="rounded" />
-                        Auto-create issues on test failures
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" defaultChecked className="rounded" />
-                        Link issues to test runs
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" />
-                        Track in active cycle
-                      </label>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button>Connect Linear</Button>
-                      <Button variant="outline">Test Connection</Button>
-                    </div>
-                  </div>
-                ) : (
-                  selectedIntegration.configExample && (
-                    <div className="relative">
-                      <div className="absolute top-2 right-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyToClipboard(selectedIntegration.configExample)}
-                        >
-                          {copied ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
+                      <div className="mt-4 flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          View Documentation
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Github className="mr-2 h-4 w-4" />
+                          Example Project
                         </Button>
                       </div>
-                      <pre className="p-4 rounded-lg bg-muted overflow-x-auto text-xs">
-                        <code>{selectedIntegration.configExample}</code>
-                      </pre>
-                    </div>
-                  )
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  SDK Usage
-                </CardTitle>
-                <CardDescription>
-                  Use the SDK to integrate programmatically
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative">
-                  <div className="absolute top-2 right-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(SDK_EXAMPLE)}
-                    >
-                      {copied ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <pre className="p-4 rounded-lg bg-muted overflow-x-auto text-xs">
-                    <code>{SDK_EXAMPLE}</code>
-                  </pre>
+                    </CardContent>
+                  </Card>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View Documentation
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Github className="mr-2 h-4 w-4" />
-                    Example Project
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* API Endpoint Reference */}
-          <Card>
-            <CardHeader>
-              <CardTitle>API Endpoints</CardTitle>
-              <CardDescription>Direct API access for custom integrations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { method: 'POST', endpoint: '/api/v1/tests/run', desc: 'Run test suite' },
-                  { method: 'POST', endpoint: '/api/v1/tests/create', desc: 'Create test from NLP' },
-                  { method: 'POST', endpoint: '/api/v1/discover', desc: 'Auto-discover app' },
-                  { method: 'POST', endpoint: '/api/v1/visual/compare', desc: 'Visual comparison' },
-                  { method: 'GET', endpoint: '/api/v1/jobs/{id}', desc: 'Get job status' },
-                  { method: 'POST', endpoint: '/api/v1/webhooks/github', desc: 'GitHub webhook' },
-                ].map((api) => (
-                  <div
-                    key={api.endpoint}
-                    className="flex items-center gap-3 p-3 rounded-lg border"
-                  >
-                    <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-mono',
-                      api.method === 'GET' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
-                    )}>
-                      {api.method}
-                    </span>
-                    <div className="flex-1">
-                      <code className="text-sm">{api.endpoint}</code>
-                      <div className="text-xs text-muted-foreground">{api.desc}</div>
+                {/* API Endpoint Reference */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>API Endpoints</CardTitle>
+                    <CardDescription>Direct API access for custom integrations</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { method: 'POST', endpoint: '/api/v1/tests/run', desc: 'Run test suite' },
+                        { method: 'POST', endpoint: '/api/v1/tests/create', desc: 'Create test from NLP' },
+                        { method: 'POST', endpoint: '/api/v1/discover', desc: 'Auto-discover app' },
+                        { method: 'POST', endpoint: '/api/v1/visual/compare', desc: 'Visual comparison' },
+                        { method: 'GET', endpoint: '/api/v1/jobs/{id}', desc: 'Get job status' },
+                        { method: 'POST', endpoint: '/api/v1/webhooks/github', desc: 'GitHub webhook' },
+                      ].map((api) => (
+                        <div
+                          key={api.endpoint}
+                          className="flex items-center gap-3 p-3 rounded-lg border"
+                        >
+                          <span className={cn(
+                            'px-2 py-0.5 rounded text-xs font-mono',
+                            api.method === 'GET' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
+                          )}>
+                            {api.method}
+                          </span>
+                          <div className="flex-1">
+                            <code className="text-sm">{api.endpoint}</code>
+                            <div className="text-xs text-muted-foreground">{api.desc}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
               </motion.div>
             )}
           </AnimatePresence>

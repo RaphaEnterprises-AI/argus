@@ -78,6 +78,10 @@ export const BACKEND_URL = getBackendUrl();
 let globalGetToken: (() => Promise<string | null>) | null = null;
 let authInitialized = false;
 
+// Global organization ID getter - set by ApiClientProvider
+// Returns the backend UUID format, NOT Clerk's org_xxx format
+let globalGetOrgId: (() => string | null) | null = null;
+
 /**
  * Set the global token getter function
  * Called by ApiClientProvider on mount
@@ -93,6 +97,33 @@ export function setGlobalTokenGetter(getToken: () => Promise<string | null>) {
 export function clearGlobalTokenGetter() {
   globalGetToken = null;
   // Don't reset authInitialized - it's only reset on page reload
+}
+
+/**
+ * Set the global organization ID getter
+ * Called by ApiClientProvider to inject current org from OrganizationContext
+ * @param getOrgId Function that returns the current org's backend UUID
+ */
+export function setGlobalOrgIdGetter(getOrgId: () => string | null) {
+  globalGetOrgId = getOrgId;
+}
+
+/**
+ * Clear the global org ID getter (on unmount/logout)
+ */
+export function clearGlobalOrgIdGetter() {
+  globalGetOrgId = null;
+}
+
+/**
+ * Get the current organization ID for multi-tenant API requests
+ * Returns backend UUID format
+ */
+export function getCurrentOrgId(): string | null {
+  if (!globalGetOrgId) {
+    return null;
+  }
+  return globalGetOrgId();
 }
 
 /**
@@ -222,10 +253,13 @@ export async function authenticatedFetch(
   const { signal, timeout = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options || {};
 
   const token = await getAuthToken();
+  const orgId = getCurrentOrgId();
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    // Include organization ID for multi-tenant API requests
+    ...(orgId ? { 'X-Organization-ID': orgId } : {}),
     ...(fetchOptions.headers || {}),
   };
 

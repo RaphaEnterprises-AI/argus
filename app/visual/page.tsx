@@ -1564,6 +1564,8 @@ export default function VisualPage() {
   const approveComparison = useApproveComparison();
   const runVisualTest = useRunVisualTest();
   const updateBaseline = useUpdateBaseline();
+  const runResponsiveTest = useRunResponsiveTest();
+  const crossBrowserTest = useCrossBrowserTest();
 
   const isLoading = projectsLoading || baselinesLoading || comparisonsLoading;
   const isRunning = runVisualTest.isPending;
@@ -1676,48 +1678,60 @@ export default function VisualPage() {
     }
   }, [currentProject, testUrl, runVisualTest]);
 
-  // Run responsive test across selected viewports
+  // Run responsive test across selected viewports using dedicated responsive endpoint
   const handleRunResponsiveTest = useCallback(async () => {
     if (!currentProject || !testUrl) return;
 
     try {
-      // Run tests for each selected viewport sequentially
-      for (const viewportName of selectedViewports) {
-        const viewport = VIEWPORTS.find(v => v.name === viewportName);
-        if (viewport) {
-          await runVisualTest.mutateAsync({
-            projectId: currentProject,
-            url: testUrl,
-            name: `${testUrl.replace(/https?:\/\//, '').split('/')[0]}-${viewportName.toLowerCase().replace(/\s+/g, '-')}`,
-            viewport: `${viewport.width}x${viewport.height}`,
-          });
-        }
-      }
+      const viewportsToTest: ViewportConfig[] = selectedViewports
+        .map((name) => VIEWPORTS.find((v) => v.name === name))
+        .filter((v): v is typeof VIEWPORTS[number] => v !== undefined)
+        .map((v) => ({ name: v.name, width: v.width, height: v.height }));
+
+      // Use dedicated responsive testing hook instead of running individual tests
+      await runResponsiveTest.mutateAsync({
+        projectId: currentProject,
+        url: testUrl,
+        viewports: viewportsToTest,
+      });
+
       setTestUrl('');
       setResponsiveModalOpen(false);
     } catch (error) {
       console.error('Responsive test failed:', error);
     }
-  }, [currentProject, testUrl, selectedViewports, runVisualTest]);
+  }, [currentProject, testUrl, selectedViewports, runResponsiveTest]);
 
-  // Run cross-browser test (placeholder - backend supports this via /api/v1/visual/browsers/capture)
+  // Run cross-browser test using dedicated cross-browser endpoint
   const handleRunCrossBrowserTest = useCallback(async () => {
     if (!currentProject || !testUrl) return;
 
     try {
-      // For now, run the test once - full cross-browser would need backend integration
-      // TODO: Connect to /api/v1/visual/browsers/capture endpoint
-      await runVisualTest.mutateAsync({
-        projectId: currentProject,
+      // Map frontend browser keys to backend browser names
+      const browserMapping: Record<string, string> = {
+        'chrome': 'chromium',
+        'firefox': 'firefox',
+        'safari': 'webkit',
+        'edge': 'chromium',
+      };
+
+      const browsersToTest = selectedBrowsers.map(b => browserMapping[b] || b);
+
+      // Use dedicated cross-browser testing hook
+      await crossBrowserTest.mutateAsync({
         url: testUrl,
+        browsers: browsersToTest,
+        projectId: currentProject,
+        viewport: { width: 1920, height: 1080 },
         name: `${testUrl.replace(/https?:\/\//, '').split('/')[0]}-cross-browser`,
       });
+
       setTestUrl('');
       setCrossBrowserModalOpen(false);
     } catch (error) {
       console.error('Cross-browser test failed:', error);
     }
-  }, [currentProject, testUrl, runVisualTest]);
+  }, [currentProject, testUrl, selectedBrowsers, crossBrowserTest]);
 
   const handleUpdateBaseline = useCallback(async (comparisonId: string) => {
     if (!currentProject) return;
