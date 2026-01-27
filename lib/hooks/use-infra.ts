@@ -372,3 +372,81 @@ export function useLLMCostTracking(period: string = '30d') {
 
 // Note: Mock data removed - dashboard now shows real data only
 // If API fails, an empty state is returned instead of fake data
+
+// ============================================================================
+// Data Layer Health Types and Hook
+// ============================================================================
+
+export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+
+export interface ComponentHealth {
+  name: string;
+  status: HealthStatus;
+  latency_ms: number | null;
+  message: string | null;
+  details: Record<string, unknown> | null;
+  checked_at: string;
+}
+
+export interface DataLayerHealth {
+  overall_status: HealthStatus;
+  components: ComponentHealth[];
+  healthy_count: number;
+  total_count: number;
+  checked_at: string;
+}
+
+/**
+ * Hook to fetch data layer health status
+ * Checks: Redpanda, FalkorDB, Valkey, Cognee, Selenium Grid, Prometheus, Supabase
+ */
+export function useDataLayerHealth() {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
+  return useQuery({
+    queryKey: ['health', 'data-layer'],
+    queryFn: async (): Promise<DataLayerHealth> => {
+      const response = await fetchJson<DataLayerHealth>('/api/v1/health/data-layer');
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data || {
+        overall_status: 'unknown',
+        components: [],
+        healthy_count: 0,
+        total_count: 0,
+        checked_at: new Date().toISOString(),
+      };
+    },
+    enabled: isLoaded && isSignedIn,
+    refetchInterval: 30000, // Refresh every 30 seconds for health checks
+    retry: 1, // Only retry once for health checks
+  });
+}
+
+/**
+ * Hook to fetch a single component's health
+ */
+export function useComponentHealth(component: string) {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
+  return useQuery({
+    queryKey: ['health', 'component', component],
+    queryFn: async (): Promise<ComponentHealth> => {
+      const response = await fetchJson<ComponentHealth>(`/api/v1/health/data-layer/${component}`);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return response.data || {
+        name: component,
+        status: 'unknown',
+        latency_ms: null,
+        message: 'Failed to fetch health',
+        details: null,
+        checked_at: new Date().toISOString(),
+      };
+    },
+    enabled: isLoaded && isSignedIn && !!component,
+    refetchInterval: 15000, // Refresh individual component every 15 seconds
+  });
+}

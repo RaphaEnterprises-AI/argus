@@ -12,3 +12,9 @@ export type { LLMUsageData } from './LLMCostTracker';
 
 export { BrowserNodesStatus, BrowserNodesStatusSkeleton } from './BrowserNodesStatus';
 export type { BrowserNodeData, SeleniumData } from './BrowserNodesStatus';
+
+export {
+  DataLayerHealthPanel,
+  DataLayerHealthPanelSkeleton,
+  DataLayerHealthIndicator,
+} from './data-layer-health';
