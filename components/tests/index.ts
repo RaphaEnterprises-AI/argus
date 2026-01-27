@@ -16,3 +16,26 @@ export {
   TestRunHeader,
   type TestRunHeaderProps,
 } from './TestRunHeader';
+export { TestResultCard } from './TestResultCard';
+export {
+  ViewModeToggle,
+  useViewModePreference,
+  type ViewMode,
+} from './ViewModeToggle';
+export { TestResultsGridView } from './TestResultsGridView';
+export { TestResultsListView } from './TestResultsListView';
+export {
+  TestExecutionTimeline,
+  type TestNode,
+  type TestStatus,
+} from './TestExecutionTimeline';
+export { TestRunActions } from './TestRunActions';
+export {
+  AIInsightsPanel,
+  type AIInsightsPanelProps,
+  type InsightSeverity,
+  type InsightType,
+  type TestInsight,
+} from './AIInsightsPanel';
+export { CIContextPanel, CIContextBadges } from './CIContextPanel';
+export { RunHistorySidebar } from './RunHistorySidebar';

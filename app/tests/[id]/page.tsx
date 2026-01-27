@@ -1,28 +1,51 @@
 'use client';
 
+import { useState, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { formatDistanceToNow, format } from 'date-fns';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Loader2,
-  Globe,
-  Monitor,
-  AlertCircle,
-  Play,
-  Calendar,
-  Timer,
-  Target,
-  Zap,
-} from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/data-table';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { useTestRun, useTestResults } from '@/lib/hooks/use-tests';
+
+// Test components
+import {
+  TestRunHeader,
+  TestResultCard,
+  ScreenshotGallery,
+  ViewModeToggle,
+  TestResultsGridView,
+  TestResultsListView,
+  TestExecutionTimeline,
+  TestRunActions,
+  AIInsightsPanel,
+  CIContextPanel,
+  RunHistorySidebar,
+  type Screenshot,
+  type ViewMode,
+  type TestNode,
+} from '@/components/tests';
+
+// Shared components
+import {
+  StatCardWithTrend,
+  formatDurationDelta,
+  formatPercentageDelta,
+} from '@/components/shared';
+
+// Hooks
+import {
+  useTestRun,
+  useTestResults,
+  useTestRunComparison,
+} from '@/lib/hooks/use-tests';
+import { useTestRunRealtime } from '@/lib/hooks/useTestRunRealtime';
+import { useProject } from '@/lib/hooks/use-projects';
+
+// Icons for stat cards
+import { Target, CheckCircle2, XCircle, Timer } from 'lucide-react';
+
+// Types
 import type { TestResult } from '@/lib/supabase/types';
 
 function formatDuration(ms: number | null): string {
@@ -34,42 +57,12 @@ function formatDuration(ms: number | null): string {
   return `${minutes}m ${remainingSeconds}s`;
 }
 
-function getStatusIcon(status: string) {
-  switch (status) {
-    case 'passed':
-      return <CheckCircle2 className="h-5 w-5 text-success" />;
-    case 'failed':
-      return <XCircle className="h-5 w-5 text-error" />;
-    case 'running':
-      return <Loader2 className="h-5 w-5 text-info animate-spin" />;
-    case 'pending':
-      return <Clock className="h-5 w-5 text-warning" />;
-    default:
-      return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
-  }
-}
-
-function getStatusVariant(status: string): 'success' | 'error' | 'warning' | 'info' | 'default' {
-  switch (status) {
-    case 'passed':
-      return 'success';
-    case 'failed':
-      return 'error';
-    case 'running':
-      return 'info';
-    case 'pending':
-      return 'warning';
-    default:
-      return 'default';
-  }
-}
-
 function LoadingSkeleton() {
   return (
     <div className="flex min-h-screen overflow-x-hidden">
       <Sidebar />
       <main className="flex-1 lg:ml-64 p-6">
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
           <div className="h-10 w-32 bg-muted animate-pulse rounded" />
           <div className="h-8 w-64 bg-muted animate-pulse rounded" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -105,99 +98,107 @@ function ErrorState({ message, onBack }: { message: string; onBack: () => void }
   );
 }
 
-function TestResultCard({ result }: { result: TestResult }) {
-  const stepResults = result.step_results as Array<{
-    step: string;
-    success: boolean;
-    error?: string;
-    screenshot?: string;
-  }> | null;
+// Extract screenshots from test results
+function extractScreenshots(testResults: TestResult[]): Screenshot[] {
+  const screenshots: Screenshot[] = [];
 
-  return (
-    <Card className={cn(
-      'border-l-4',
-      result.status === 'passed' && 'border-l-success',
-      result.status === 'failed' && 'border-l-error',
-      result.status === 'running' && 'border-l-info',
-      result.status === 'pending' && 'border-l-warning',
-    )}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {getStatusIcon(result.status)}
-            <div>
-              <CardTitle className="text-base">{result.name}</CardTitle>
-              <CardDescription>
-                {result.steps_completed}/{result.steps_total} steps completed
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant={getStatusVariant(result.status)}>
-              {result.status.charAt(0).toUpperCase() + result.status.slice(1)}
-            </Badge>
-            {result.duration_ms && (
-              <span className="text-sm text-muted-foreground">
-                {formatDuration(result.duration_ms)}
-              </span>
-            )}
-          </div>
-        </div>
-      </CardHeader>
+  testResults.forEach((result) => {
+    const stepResults = result.step_results as Array<{
+      step?: string;
+      instruction?: string;
+      success?: boolean;
+      error?: string;
+      screenshot?: string;
+      duration?: number;
+      timestamp?: string;
+    }> | null;
 
-      {(result.error_message || (stepResults && stepResults.length > 0)) && (
-        <CardContent className="pt-0">
-          {result.error_message && (
-            <div className="p-3 rounded-lg bg-error/10 border border-error/20 mb-4">
-              <p className="text-sm text-error font-medium">Error</p>
-              <p className="text-sm text-muted-foreground mt-1">{result.error_message}</p>
-            </div>
-          )}
+    if (stepResults) {
+      stepResults.forEach((step, index) => {
+        if (step.screenshot) {
+          screenshots.push({
+            data: step.screenshot,
+            stepIndex: index,
+            instruction: step.instruction || step.step || `Step ${index + 1}`,
+            success: step.success,
+            error: step.error,
+            duration: step.duration,
+            timestamp: step.timestamp,
+          });
+        }
+      });
+    }
+  });
 
-          {stepResults && stepResults.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Step Results</p>
-              {stepResults.map((step, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    'flex items-start gap-3 p-2 rounded-lg text-sm',
-                    step.success ? 'bg-success/5' : 'bg-error/5'
-                  )}
-                >
-                  <div className="mt-0.5">
-                    {step.success ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-error" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate">{step.step || `Step ${index + 1}`}</p>
-                    {step.error && (
-                      <p className="text-xs text-error mt-1">{step.error}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  );
+  return screenshots;
+}
+
+// Convert test results to timeline nodes
+function resultsToTimelineNodes(testResults: TestResult[]): TestNode[] {
+  return testResults.map((result, index) => ({
+    id: result.id,
+    number: index + 1,
+    name: result.name,
+    status: result.status as 'passed' | 'failed' | 'running' | 'pending',
+    durationMs: result.duration_ms ?? undefined,
+  }));
 }
 
 export default function TestRunDetailPage() {
   const params = useParams();
   const router = useRouter();
   const runId = params.id as string;
+  const resultRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>('timeline');
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+
+  // Data fetching
   const { data: testRun, isLoading: runLoading, error: runError } = useTestRun(runId);
   const { data: testResults = [], isLoading: resultsLoading } = useTestResults(runId);
+  const { data: project } = useProject(testRun?.project_id || null);
+  const { data: comparison, isLoading: comparisonLoading } = useTestRunComparison(
+    testRun?.project_id || null
+  );
+
+  // Real-time updates - only subscribe when test is running or pending
+  const shouldSubscribe = testRun && (testRun.status === 'running' || testRun.status === 'pending');
+  const { connectionStatus, reconnect } = useTestRunRealtime(shouldSubscribe ? runId : null);
+
+  // Derived data
+  const screenshots = useMemo(() => extractScreenshots(testResults), [testResults]);
+  const timelineNodes = useMemo(() => resultsToTimelineNodes(testResults), [testResults]);
+  const failedScreenshots = useMemo(
+    () => screenshots.filter((s) => s.success === false),
+    [screenshots]
+  );
 
   const handleBack = () => {
     router.push('/dashboard');
+  };
+
+  const handleRerunComplete = () => {
+    // Refresh the page data
+    router.refresh();
+  };
+
+  const handleCompare = (previousRunId: string) => {
+    // Navigate to comparison view
+    router.push(`/visual?current=${runId}&previous=${previousRunId}`);
+  };
+
+  const handleTimelineTestClick = (testId: string) => {
+    setSelectedResultId(testId);
+    // Scroll to the result
+    const element = resultRefs.current[testId];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleResultSelect = (result: TestResult) => {
+    setSelectedResultId(result.id);
   };
 
   if (runLoading) {
@@ -207,224 +208,203 @@ export default function TestRunDetailPage() {
   if (runError || !testRun) {
     return (
       <ErrorState
-        message={runError ? `Failed to load test run: ${runError.message}` : "The test run you're looking for doesn't exist or has been deleted."}
+        message={
+          runError
+            ? `Failed to load test run: ${runError.message}`
+            : "The test run you're looking for doesn't exist or has been deleted."
+        }
         onBack={handleBack}
       />
     );
   }
 
-  const passRate = testRun.total_tests > 0
-    ? Math.round((testRun.passed_tests / testRun.total_tests) * 100)
-    : 0;
+  const passRate =
+    testRun.total_tests > 0
+      ? Math.round((testRun.passed_tests / testRun.total_tests) * 100)
+      : 0;
 
   return (
     <div className="flex min-h-screen overflow-x-hidden">
       <Sidebar />
-      <main className="flex-1 lg:ml-64 min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-sm px-4 lg:px-6 py-4">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center gap-4 mb-4">
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <div className="h-4 w-px bg-border" />
-              <Badge variant={getStatusVariant(testRun.status)} className="text-sm">
-                {getStatusIcon(testRun.status)}
-                <span className="ml-1.5">{testRun.status.charAt(0).toUpperCase() + testRun.status.slice(1)}</span>
-              </Badge>
-            </div>
 
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  {testRun.name || 'Test Run'}
-                </h1>
-                <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(testRun.created_at), 'PPp')}
-                  <span className="text-border">|</span>
-                  {formatDistanceToNow(new Date(testRun.created_at), { addSuffix: true })}
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-64 min-w-0">
+        {/* Enhanced Header */}
+        <TestRunHeader
+          testRun={testRun}
+          project={project || null}
+          connectionStatus={connectionStatus}
+          onReconnect={reconnect}
+        />
 
         {/* Content */}
         <div className="p-4 lg:p-6">
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Target className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold">{testRun.total_tests}</p>
-                      <p className="text-xs text-muted-foreground">Total Tests</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-success/10">
-                      <CheckCircle2 className="h-5 w-5 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold text-success">{testRun.passed_tests}</p>
-                      <p className="text-xs text-muted-foreground">Passed</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-error/10">
-                      <XCircle className="h-5 w-5 text-error" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold text-error">{testRun.failed_tests}</p>
-                      <p className="text-xs text-muted-foreground">Failed</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-info/10">
-                      <Timer className="h-5 w-5 text-info" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-semibold">{formatDuration(testRun.duration_ms)}</p>
-                      <p className="text-xs text-muted-foreground">Duration</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="max-w-6xl mx-auto space-y-6">
+            {/* Action Bar */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <TestRunActions
+                testRun={testRun}
+                testResults={testResults}
+                onRerunComplete={handleRerunComplete}
+              />
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
             </div>
 
-            {/* Run Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Run Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">App URL</p>
-                      <a
-                        href={testRun.app_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline truncate block max-w-xs"
-                      >
-                        {testRun.app_url}
-                      </a>
-                    </div>
-                  </div>
+            {/* Stats Grid with Comparison */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCardWithTrend
+                icon={Target}
+                label="Total Tests"
+                value={String(testRun.total_tests)}
+                delta={null}
+                metricType="neutral"
+                isLoading={comparisonLoading}
+                hasPreviousRun={comparison?.hasPreviousRun ?? false}
+              />
+              <StatCardWithTrend
+                icon={CheckCircle2}
+                label="Passed"
+                value={String(testRun.passed_tests)}
+                delta={comparison?.deltas.passedDelta ?? null}
+                metricType="positive-good"
+                isLoading={comparisonLoading}
+                hasPreviousRun={comparison?.hasPreviousRun ?? false}
+              />
+              <StatCardWithTrend
+                icon={XCircle}
+                label="Failed"
+                value={String(testRun.failed_tests)}
+                delta={comparison?.deltas.failedDelta ?? null}
+                metricType="negative-good"
+                isLoading={comparisonLoading}
+                hasPreviousRun={comparison?.hasPreviousRun ?? false}
+              />
+              <StatCardWithTrend
+                icon={Timer}
+                label="Duration"
+                value={formatDuration(testRun.duration_ms)}
+                delta={comparison?.deltas.durationDelta ?? null}
+                metricType="negative-good"
+                formatDelta={formatDurationDelta}
+                isLoading={comparisonLoading}
+                hasPreviousRun={comparison?.hasPreviousRun ?? false}
+              />
+            </div>
 
-                  <div className="flex items-center gap-3">
-                    <Monitor className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Browser</p>
-                      <p className="text-sm capitalize">{testRun.browser || 'chromium'}</p>
-                    </div>
-                  </div>
+            {/* Execution Timeline */}
+            {testResults.length > 0 && viewMode === 'timeline' && (
+              <TestExecutionTimeline
+                tests={timelineNodes}
+                onTestClick={handleTimelineTestClick}
+              />
+            )}
 
-                  <div className="flex items-center gap-3">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Trigger</p>
-                      <p className="text-sm capitalize">{testRun.trigger || 'manual'}</p>
-                    </div>
-                  </div>
+            {/* Two Column Layout for Results + Sidebar Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Test Results - Takes 2/3 */}
+              <div className="lg:col-span-2 space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Test Results</h2>
 
-                  <div className="flex items-center gap-3">
-                    <Play className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Pass Rate</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{passRate}%</p>
-                        <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={cn(
-                              'h-full transition-all',
-                              passRate >= 80 ? 'bg-success' : passRate >= 50 ? 'bg-warning' : 'bg-error'
-                            )}
-                            style={{ width: `${passRate}%` }}
+                  {resultsLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+                      ))}
+                    </div>
+                  ) : testResults.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground">No test results found</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Results will appear here once the test run completes.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : viewMode === 'grid' ? (
+                    <TestResultsGridView
+                      results={testResults}
+                      isLoading={resultsLoading}
+                      onResultClick={handleResultSelect}
+                    />
+                  ) : viewMode === 'list' ? (
+                    <TestResultsListView
+                      results={testResults}
+                      isLoading={resultsLoading}
+                      onResultClick={handleResultSelect}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      {testResults.map((result) => (
+                        <div
+                          key={result.id}
+                          ref={(el) => {
+                            resultRefs.current[result.id] = el;
+                          }}
+                          className={cn(
+                            'transition-all duration-200',
+                            selectedResultId === result.id &&
+                              'ring-2 ring-primary ring-offset-2 rounded-lg'
+                          )}
+                        >
+                          <TestResultCard
+                            result={result}
+                            defaultExpanded={selectedResultId === result.id}
                           />
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Timing Info */}
-                {(testRun.started_at || testRun.completed_at) && (
-                  <div className="mt-4 pt-4 border-t">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      {testRun.started_at && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Started</p>
-                          <p>{format(new Date(testRun.started_at), 'PPp')}</p>
-                        </div>
-                      )}
-                      {testRun.completed_at && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Completed</p>
-                          <p>{format(new Date(testRun.completed_at), 'PPp')}</p>
-                        </div>
-                      )}
-                    </div>
+                {/* Screenshot Gallery - Only for failed tests */}
+                {failedScreenshots.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-4">Failed Step Screenshots</h2>
+                    <ScreenshotGallery
+                      screenshots={failedScreenshots}
+                      columns={3}
+                      showStepInfo
+                    />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Test Results */}
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Test Results</h2>
+              {/* Sidebar Content - Takes 1/3 */}
+              <div className="space-y-6">
+                {/* AI Insights */}
+                <AIInsightsPanel
+                  testResults={testResults}
+                  isLoading={resultsLoading}
+                  maxInsights={5}
+                />
 
-              {resultsLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              ) : testResults.length === 0 ? (
+                {/* CI/CD Context */}
                 <Card>
-                  <CardContent className="py-12 text-center">
-                    <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">No test results found</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Results will appear here once the test run completes.
-                    </p>
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-3">Run Context</h3>
+                    <CIContextPanel
+                      ciMetadata={testRun.ci_metadata}
+                      environment={{
+                        browser: testRun.browser || undefined,
+                        environment: testRun.environment || undefined,
+                      }}
+                    />
                   </CardContent>
                 </Card>
-              ) : (
-                <div className="space-y-4">
-                  {testResults.map((result) => (
-                    <TestResultCard key={result.id} result={result} />
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Run History Sidebar */}
+      <RunHistorySidebar
+        projectId={testRun.project_id}
+        currentRunId={runId}
+        onCompare={handleCompare}
+      />
     </div>
   );
 }
