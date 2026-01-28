@@ -45,6 +45,89 @@ export interface ModelInfo {
   output_price: number;
   capabilities: string[];
   is_available: boolean;
+  tier?: ModelTier;
+  context_window?: number;
+  max_output_tokens?: number;
+  supports_vision?: boolean;
+  supports_function_calling?: boolean;
+  supports_streaming?: boolean;
+  deprecated?: boolean;
+  deprecation_date?: string | null;
+}
+
+/**
+ * Model tier for categorization.
+ */
+export type ModelTier = 'free' | 'standard' | 'premium' | 'enterprise';
+
+/**
+ * Model capability types for filtering.
+ */
+export type ModelCapability =
+  | 'chat'
+  | 'completion'
+  | 'embedding'
+  | 'vision'
+  | 'function_calling'
+  | 'streaming'
+  | 'code'
+  | 'reasoning';
+
+/**
+ * Filters for querying models.
+ */
+export interface ModelFilters {
+  provider?: string;
+  capability?: ModelCapability;
+  tier?: ModelTier;
+  search?: string;
+}
+
+/**
+ * Provider information with status.
+ */
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  display_name: string;
+  status: ProviderStatus;
+  is_enabled: boolean;
+  requires_api_key: boolean;
+  supports_byok: boolean;
+  models_count: number;
+  base_url?: string;
+  documentation_url?: string;
+  icon_url?: string;
+}
+
+/**
+ * Provider operational status.
+ */
+export type ProviderStatus = 'operational' | 'degraded' | 'outage' | 'maintenance' | 'unknown';
+
+/**
+ * Detailed provider status response.
+ */
+export interface ProviderStatusResponse {
+  provider_id: string;
+  status: ProviderStatus;
+  latency_ms: number | null;
+  last_checked_at: string;
+  error_rate_percent: number;
+  uptime_percent_24h: number;
+  incidents: ProviderIncident[];
+}
+
+/**
+ * Provider incident information.
+ */
+export interface ProviderIncident {
+  id: string;
+  title: string;
+  status: 'investigating' | 'identified' | 'monitoring' | 'resolved';
+  started_at: string;
+  resolved_at: string | null;
+  description: string;
 }
 
 /**
@@ -445,6 +528,229 @@ export function useAIBudget() {
     enabled: isLoaded && isSignedIn,
     staleTime: 60 * 1000, // 1 minute (budget changes frequently)
     gcTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// ============================================================================
+// Models API Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch models with optional filters.
+ *
+ * @param filters - Optional filters for provider, capability, tier, or search
+ * @returns Query result with filtered models
+ *
+ * @example
+ * ```tsx
+ * function ModelList() {
+ *   // Fetch all models
+ *   const { data: allModels } = useModels();
+ *
+ *   // Fetch only Anthropic models with vision capability
+ *   const { data: anthropicVision } = useModels({
+ *     provider: 'anthropic',
+ *     capability: 'vision',
+ *   });
+ *
+ *   // Search for models by name
+ *   const { data: searchResults } = useModels({ search: 'gpt-4' });
+ *
+ *   return <ModelGrid models={allModels} />;
+ * }
+ * ```
+ */
+export function useModels(filters?: ModelFilters) {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
+  // Build query string from filters
+  const queryParams = new URLSearchParams();
+  if (filters?.provider) queryParams.append('provider', filters.provider);
+  if (filters?.capability) queryParams.append('capability', filters.capability);
+  if (filters?.tier) queryParams.append('tier', filters.tier);
+  if (filters?.search) queryParams.append('search', filters.search);
+
+  const queryString = queryParams.toString();
+  const endpoint = `/api/v1/models${queryString ? `?${queryString}` : ''}`;
+
+  return useQuery({
+    queryKey: ['models', filters],
+    queryFn: async () => {
+      const response = await fetchJson<ModelInfo[]>(endpoint);
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      return response.data || [];
+    },
+    enabled: isLoaded && isSignedIn,
+    staleTime: 10 * 60 * 1000, // 10 minutes - models don't change often
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+/**
+ * Hook to fetch all providers with their status.
+ *
+ * @returns Query result with list of providers and their status
+ *
+ * @example
+ * ```tsx
+ * function ProviderList() {
+ *   const { data: providers, isLoading } = useProviders();
+ *
+ *   if (isLoading) return <Spinner />;
+ *
+ *   return (
+ *     <ul>
+ *       {providers?.map((p) => (
+ *         <li key={p.id}>
+ *           {p.display_name} - {p.status}
+ *         </li>
+ *       ))}
+ *     </ul>
+ *   );
+ * }
+ * ```
+ */
+export function useProviders() {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
+  return useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const response = await fetchJson<ProviderInfo[]>('/api/v1/providers');
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      return response.data || [];
+    },
+    enabled: isLoaded && isSignedIn,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+  });
+}
+
+/**
+ * Hook to fetch detailed status for a specific provider.
+ *
+ * @param providerId - The provider ID to check status for
+ * @returns Query result with detailed provider status including latency and incidents
+ *
+ * @example
+ * ```tsx
+ * function ProviderStatusCard({ providerId }: { providerId: string }) {
+ *   const { data: status, isLoading } = useProviderStatus(providerId);
+ *
+ *   if (isLoading) return <Skeleton />;
+ *
+ *   return (
+ *     <Card>
+ *       <Badge color={status?.status === 'operational' ? 'green' : 'red'}>
+ *         {status?.status}
+ *       </Badge>
+ *       <p>Latency: {status?.latency_ms}ms</p>
+ *       <p>Uptime (24h): {status?.uptime_percent_24h}%</p>
+ *     </Card>
+ *   );
+ * }
+ * ```
+ */
+export function useProviderStatus(providerId: string | null | undefined) {
+  const { fetchJson, isLoaded, isSignedIn } = useAuthApi();
+
+  return useQuery({
+    queryKey: ['provider-status', providerId],
+    queryFn: async () => {
+      if (!providerId) {
+        throw new Error('Provider ID is required');
+      }
+
+      const response = await fetchJson<ProviderStatusResponse>(
+        `/api/v1/providers/${providerId}/status`
+      );
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      return response.data;
+    },
+    enabled: isLoaded && isSignedIn && !!providerId,
+    staleTime: 60 * 1000, // 1 minute - status changes frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 60 * 1000, // Auto-refresh every minute when visible
+  });
+}
+
+/**
+ * Hook to set the user's default model.
+ * This is a convenience wrapper around useUpdateAIPreferences for setting just the default model.
+ *
+ * @returns Mutation for setting the default model
+ *
+ * @example
+ * ```tsx
+ * function ModelSelector() {
+ *   const setDefaultModel = useSetDefaultModel();
+ *   const { data: models } = useModels();
+ *
+ *   const handleSelect = async (modelId: string, provider: string) => {
+ *     await setDefaultModel.mutateAsync({ modelId, provider });
+ *   };
+ *
+ *   return (
+ *     <select onChange={(e) => {
+ *       const model = models?.find(m => m.model_id === e.target.value);
+ *       if (model) handleSelect(model.model_id, model.provider);
+ *     }}>
+ *       {models?.map((m) => (
+ *         <option key={m.model_id} value={m.model_id}>
+ *           {m.display_name}
+ *         </option>
+ *       ))}
+ *     </select>
+ *   );
+ * }
+ * ```
+ */
+export function useSetDefaultModel() {
+  const { fetchJson } = useAuthApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      modelId,
+      provider,
+    }: {
+      modelId: string;
+      provider: string;
+    }): Promise<AIPreferences> => {
+      const response = await fetchJson<AIPreferences>('/api/v1/users/me/ai-preferences', {
+        method: 'PUT',
+        body: JSON.stringify({
+          default_model: modelId,
+          default_provider: provider,
+        }),
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      if (!response.data) {
+        throw new Error('No data returned from API');
+      }
+
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Update the preferences cache
+      queryClient.setQueryData(['ai-preferences'], data);
+    },
   });
 }
 

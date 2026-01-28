@@ -97,12 +97,25 @@ interface AISettingsSectionProps {
 
 // Provider metadata
 const PROVIDERS = {
+  openrouter: {
+    name: 'OpenRouter',
+    description: 'Access 300+ models with one API key',
+    logo: '/logos/openrouter.svg',
+    keyPlaceholder: 'sk-or-v1-...',
+    docsUrl: 'https://openrouter.ai/keys',
+    websiteUrl: 'https://openrouter.ai',
+    modelCount: 300,
+    authType: 'api_key' as const,
+  },
   anthropic: {
     name: 'Anthropic',
     description: 'Claude models (Opus, Sonnet, Haiku)',
     logo: '/logos/anthropic.svg',
     keyPlaceholder: 'sk-ant-api...',
     docsUrl: 'https://console.anthropic.com/settings/keys',
+    websiteUrl: 'https://anthropic.com',
+    modelCount: 6,
+    authType: 'api_key' as const,
   },
   openai: {
     name: 'OpenAI',
@@ -110,13 +123,19 @@ const PROVIDERS = {
     logo: '/logos/openai.svg',
     keyPlaceholder: 'sk-...',
     docsUrl: 'https://platform.openai.com/api-keys',
+    websiteUrl: 'https://openai.com',
+    modelCount: 12,
+    authType: 'api_key' as const,
   },
   google: {
-    name: 'Google',
+    name: 'Google AI',
     description: 'Gemini 2.0 models',
     logo: '/logos/google.svg',
     keyPlaceholder: 'AIza...',
     docsUrl: 'https://makersuite.google.com/app/apikey',
+    websiteUrl: 'https://ai.google.dev',
+    modelCount: 8,
+    authType: 'api_key' as const,
   },
   groq: {
     name: 'Groq',
@@ -124,6 +143,9 @@ const PROVIDERS = {
     logo: '/logos/groq.svg',
     keyPlaceholder: 'gsk_...',
     docsUrl: 'https://console.groq.com/keys',
+    websiteUrl: 'https://groq.com',
+    modelCount: 10,
+    authType: 'api_key' as const,
   },
   together: {
     name: 'Together AI',
@@ -131,6 +153,109 @@ const PROVIDERS = {
     logo: '/logos/together.svg',
     keyPlaceholder: 'togeth...',
     docsUrl: 'https://api.together.xyz/settings/api-keys',
+    websiteUrl: 'https://together.ai',
+    modelCount: 50,
+    authType: 'api_key' as const,
+  },
+  azure_openai: {
+    name: 'Azure OpenAI',
+    description: 'Enterprise-grade OpenAI on Azure',
+    logo: '/logos/azure.svg',
+    keyPlaceholder: 'azure-key...',
+    docsUrl: 'https://portal.azure.com',
+    websiteUrl: 'https://azure.microsoft.com/products/ai-services/openai-service',
+    modelCount: 8,
+    authType: 'enterprise' as const,
+  },
+  aws_bedrock: {
+    name: 'AWS Bedrock',
+    description: 'AWS-hosted AI models',
+    logo: '/logos/aws.svg',
+    keyPlaceholder: 'aws-access-key...',
+    docsUrl: 'https://console.aws.amazon.com/bedrock',
+    websiteUrl: 'https://aws.amazon.com/bedrock',
+    modelCount: 25,
+    authType: 'enterprise' as const,
+  },
+  google_vertex: {
+    name: 'Google Vertex AI',
+    description: 'GCP-hosted AI models',
+    logo: '/logos/gcp.svg',
+    keyPlaceholder: 'gcp-service-account...',
+    docsUrl: 'https://console.cloud.google.com/vertex-ai',
+    websiteUrl: 'https://cloud.google.com/vertex-ai',
+    modelCount: 15,
+    authType: 'enterprise' as const,
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    description: 'Best reasoning per dollar',
+    logo: '/logos/deepseek.svg',
+    keyPlaceholder: 'sk-...',
+    docsUrl: 'https://platform.deepseek.com/api_keys',
+    websiteUrl: 'https://platform.deepseek.com',
+    modelCount: 4,
+    authType: 'api_key' as const,
+  },
+  mistral: {
+    name: 'Mistral AI',
+    description: 'European AI efficiency',
+    logo: '/logos/mistral.svg',
+    keyPlaceholder: 'mistral-...',
+    docsUrl: 'https://console.mistral.ai/api-keys',
+    websiteUrl: 'https://console.mistral.ai',
+    modelCount: 8,
+    authType: 'api_key' as const,
+  },
+  fireworks: {
+    name: 'Fireworks AI',
+    description: 'Fast inference',
+    logo: '/logos/fireworks.svg',
+    keyPlaceholder: 'fw_...',
+    docsUrl: 'https://fireworks.ai/account/api-keys',
+    websiteUrl: 'https://fireworks.ai',
+    modelCount: 30,
+    authType: 'api_key' as const,
+  },
+  perplexity: {
+    name: 'Perplexity',
+    description: 'AI with built-in search',
+    logo: '/logos/perplexity.svg',
+    keyPlaceholder: 'pplx-...',
+    docsUrl: 'https://perplexity.ai/settings/api',
+    websiteUrl: 'https://perplexity.ai',
+    modelCount: 4,
+    authType: 'api_key' as const,
+  },
+  cohere: {
+    name: 'Cohere',
+    description: 'Enterprise RAG',
+    logo: '/logos/cohere.svg',
+    keyPlaceholder: 'co-...',
+    docsUrl: 'https://dashboard.cohere.ai/api-keys',
+    websiteUrl: 'https://dashboard.cohere.ai',
+    modelCount: 6,
+    authType: 'api_key' as const,
+  },
+  xai: {
+    name: 'xAI',
+    description: 'Grok models',
+    logo: '/logos/xai.svg',
+    keyPlaceholder: 'xai-...',
+    docsUrl: 'https://x.ai/api',
+    websiteUrl: 'https://x.ai',
+    modelCount: 3,
+    authType: 'api_key' as const,
+  },
+  cerebras: {
+    name: 'Cerebras',
+    description: 'Ultra-fast inference',
+    logo: '/logos/cerebras.svg',
+    keyPlaceholder: 'csk-...',
+    docsUrl: 'https://cloud.cerebras.ai/platform',
+    websiteUrl: 'https://cerebras.ai',
+    modelCount: 2,
+    authType: 'api_key' as const,
   },
 };
 
@@ -359,6 +484,7 @@ export function AISettingsSection({
             {Object.entries(PROVIDERS).map(([providerId, provider]) => {
               const existingKey = getKeyForProvider(providerId);
               const isShowingInput = showKeyInput === providerId;
+              const isEnterprise = provider.authType === 'enterprise';
 
               return (
                 <div
@@ -371,7 +497,17 @@ export function AISettingsSection({
                         <Cpu className="h-5 w-5" />
                       </div>
                       <div>
-                        <div className="font-medium">{provider.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{provider.name}</span>
+                          <span className="px-1.5 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+                            {provider.modelCount}+ models
+                          </span>
+                          {isEnterprise && (
+                            <span className="px-1.5 py-0.5 rounded-full text-xs bg-purple-500/10 text-purple-500">
+                              Enterprise
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {provider.description}
                         </div>
@@ -421,7 +557,7 @@ export function AISettingsSection({
                           onClick={() => setShowKeyInput(providerId)}
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Add Key
+                          {isEnterprise ? 'Configure' : 'Add Key'}
                         </Button>
                       )}
                     </div>
@@ -430,6 +566,22 @@ export function AISettingsSection({
                   {/* Key Input Form */}
                   {isShowingInput && (
                     <div className="mt-4 pt-4 border-t space-y-3">
+                      {isEnterprise ? (
+                        <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/20">
+                          <p className="text-sm text-muted-foreground">
+                            {provider.name} requires enterprise authentication.{' '}
+                            <a
+                              href={provider.docsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              Visit the {provider.name} console
+                            </a>{' '}
+                            to set up credentials, then enter your API key or service account below.
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="flex gap-2">
                         <Input
                           type="password"
@@ -458,17 +610,19 @@ export function AISettingsSection({
                           Cancel
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Get your API key from{' '}
-                        <a
-                          href={provider.docsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          {provider.name} Console
-                        </a>
-                      </p>
+                      {!isEnterprise && (
+                        <p className="text-xs text-muted-foreground">
+                          Get your API key from{' '}
+                          <a
+                            href={provider.docsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {provider.name} Console
+                          </a>
+                        </p>
+                      )}
                     </div>
                   )}
 
