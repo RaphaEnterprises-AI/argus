@@ -203,7 +203,13 @@ function generateRecommendations(
   if (!usageSummary || !preferences) return [];
 
   const recommendations: OptimizationRecommendation[] = [];
-  const { usage_by_model, total_cost_usd } = usageSummary;
+  // Defensive: ensure usage_by_model is an object
+  const usage_by_model = usageSummary.usage_by_model && typeof usageSummary.usage_by_model === 'object'
+    ? usageSummary.usage_by_model
+    : {};
+  const total_cost_usd = usageSummary.total_cost_usd || 0;
+  // Defensive: ensure dailyUsage is an array
+  const dailyData = Array.isArray(dailyUsage) ? dailyUsage : [];
 
   // Recommendation 1: Switch from Premium to Standard tier for general tasks
   const premiumCost = Object.entries(usage_by_model)
@@ -257,8 +263,8 @@ function generateRecommendations(
 
   // Recommendation 3: Set daily budget limit if not set
   if (!preferences.cost_limit_per_day || preferences.cost_limit_per_day > 50) {
-    const avgDailyCost = dailyUsage.length > 0
-      ? dailyUsage.reduce((sum, d) => sum + d.total_cost_usd, 0) / dailyUsage.length
+    const avgDailyCost = dailyData.length > 0
+      ? dailyData.reduce((sum, d) => sum + d.total_cost_usd, 0) / dailyData.length
       : total_cost_usd / 30;
 
     const suggestedLimit = Math.ceil(avgDailyCost * 1.2);
@@ -301,9 +307,13 @@ function generateRecommendations(
   }
 
   // Recommendation 5: Consolidate to a single provider for volume discounts
-  const providerCount = Object.keys(usageSummary.usage_by_provider).length;
+  // Defensive: ensure usage_by_provider is an object
+  const usage_by_provider = usageSummary.usage_by_provider && typeof usageSummary.usage_by_provider === 'object'
+    ? usageSummary.usage_by_provider
+    : {};
+  const providerCount = Object.keys(usage_by_provider).length;
   if (providerCount > 2 && total_cost_usd > 50) {
-    const topProvider = Object.entries(usageSummary.usage_by_provider)
+    const topProvider = Object.entries(usage_by_provider)
       .sort((a, b) => b[1].cost - a[1].cost)[0];
 
     if (topProvider) {
@@ -595,18 +605,20 @@ export default function CostOptimizerPage() {
 
   const { data: usageData } = useAIUsage(30, 100);
 
-  // Calculate tier breakdown
+  // Calculate tier breakdown - defensive check for object
   const tierBreakdown = useMemo(() => {
-    if (!usageSummary?.usage_by_model) return [];
-    return calculateTierBreakdown(usageSummary.usage_by_model);
+    const usageByModel = usageSummary?.usage_by_model;
+    if (!usageByModel || typeof usageByModel !== 'object') return [];
+    return calculateTierBreakdown(usageByModel);
   }, [usageSummary]);
 
-  // Generate recommendations
+  // Generate recommendations - defensive array check
   const recommendations = useMemo(() => {
+    const dailyData = Array.isArray(usageData?.daily) ? usageData.daily : [];
     const allRecs = generateRecommendations(
       usageSummary,
       preferences,
-      usageData?.daily || []
+      dailyData
     );
     return allRecs.filter((rec) => !dismissedRecommendations.has(rec.id));
   }, [usageSummary, preferences, usageData, dismissedRecommendations]);
@@ -615,11 +627,12 @@ export default function CostOptimizerPage() {
   const totalSpending = usageSummary?.total_cost_usd || 0;
   const potentialSavings = recommendations.reduce((sum, rec) => sum + rec.savingsAmount, 0);
 
-  // Calculate spending trend
+  // Calculate spending trend - defensive array check
   const spendingTrend = useMemo(() => {
-    if (!usageData?.daily || usageData.daily.length < 7) return null;
-    const recent = usageData.daily.slice(-7);
-    const previous = usageData.daily.slice(-14, -7);
+    const dailyData = Array.isArray(usageData?.daily) ? usageData.daily : [];
+    if (dailyData.length < 7) return null;
+    const recent = dailyData.slice(-7);
+    const previous = dailyData.slice(-14, -7);
     const recentAvg = recent.reduce((sum, d) => sum + d.total_cost_usd, 0) / recent.length;
     const previousAvg = previous.length > 0
       ? previous.reduce((sum, d) => sum + d.total_cost_usd, 0) / previous.length
@@ -859,7 +872,7 @@ export default function CostOptimizerPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {usageSummary?.usage_by_provider && Object.keys(usageSummary.usage_by_provider).length > 0 ? (
+              {usageSummary?.usage_by_provider && typeof usageSummary.usage_by_provider === 'object' && Object.keys(usageSummary.usage_by_provider).length > 0 ? (
                 <div className="space-y-4">
                   {Object.entries(usageSummary.usage_by_provider)
                     .sort((a, b) => b[1].cost - a[1].cost)

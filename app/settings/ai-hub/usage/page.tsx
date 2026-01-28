@@ -436,8 +436,11 @@ function ActivityLogTable({
   onPageChange,
   onExport,
 }: ActivityLogTableProps) {
+  // Defensive: ensure records is an array
+  const recordsArray = Array.isArray(records) ? records : [];
+
   const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
+    return recordsArray.filter((record) => {
       const searchLower = filters.search.toLowerCase();
       const matchesSearch =
         !filters.search ||
@@ -449,18 +452,18 @@ function ActivityLogTable({
 
       return matchesSearch && matchesModel && matchesProvider;
     });
-  }, [records, filters]);
+  }, [recordsArray, filters]);
 
   const totalPages = Math.ceil(filteredRecords.length / pageSize);
   const paginatedRecords = filteredRecords.slice((page - 1) * pageSize, page * pageSize);
 
   const uniqueModels = useMemo(
-    () => [...new Set(records.map((r) => r.model))].sort(),
-    [records]
+    () => [...new Set(recordsArray.map((r) => r.model))].sort(),
+    [recordsArray]
   );
   const uniqueProviders = useMemo(
-    () => [...new Set(records.map((r) => r.provider))].sort(),
-    [records]
+    () => [...new Set(recordsArray.map((r) => r.provider))].sort(),
+    [recordsArray]
   );
 
   return (

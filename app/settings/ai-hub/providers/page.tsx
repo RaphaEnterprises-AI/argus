@@ -906,24 +906,26 @@ export default function ProvidersPage() {
   const [enterpriseType, setEnterpriseType] = useState<EnterpriseProvider | null>(null);
 
   // Determine connected vs not connected providers
+  // Defensive: ensure arrays before operations
+  const providerKeysArray = Array.isArray(providerKeys) ? providerKeys : [];
+  const providersArray = Array.isArray(providers) ? providers : [];
+
   const connectedProviderIds = useMemo(() => {
-    return new Set(providerKeys?.map((k) => k.provider) || []);
-  }, [providerKeys]);
+    return new Set(providerKeysArray.map((k) => k.provider));
+  }, [providerKeysArray]);
 
   const { connectedProviders, notConnectedProviders } = useMemo(() => {
-    if (!providers) return { connectedProviders: [], notConnectedProviders: [] };
-
     const connected: ProviderInfo[] = [];
     const notConnected: ProviderInfo[] = [];
 
     // Use providers from API if available, otherwise use PROVIDER_META keys
     const allProviderIds = new Set([
-      ...(providers?.map((p) => p.id) || []),
+      ...providersArray.map((p) => p.id),
       ...Object.keys(PROVIDER_META),
     ]);
 
     allProviderIds.forEach((id) => {
-      const providerFromApi = providers?.find((p) => p.id === id);
+      const providerFromApi = providersArray.find((p) => p.id === id);
       const meta = PROVIDER_META[id];
 
       if (!meta && !providerFromApi) return;
@@ -947,7 +949,7 @@ export default function ProvidersPage() {
     });
 
     return { connectedProviders: connected, notConnectedProviders: notConnected };
-  }, [providers, connectedProviderIds]);
+  }, [providersArray, connectedProviderIds]);
 
   // Handlers
   const handleAddKey = useCallback((providerId: string) => {

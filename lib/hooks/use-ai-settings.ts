@@ -306,17 +306,24 @@ export function useProviderKeys() {
   return useQuery({
     queryKey: ['provider-keys'],
     queryFn: async () => {
-      const response = await fetchJson<ProviderKey[]>('/api/v1/users/me/provider-keys');
+      try {
+        const response = await fetchJson<ProviderKey[]>('/api/v1/users/me/provider-keys');
 
-      if (response.error) {
-        throw new Error(response.error);
+        if (response.error) {
+          console.warn('Failed to fetch provider keys:', response.error);
+          return [];
+        }
+
+        return response.data || [];
+      } catch (error) {
+        console.warn('Provider keys API unavailable:', error);
+        return [];
       }
-
-      return response.data || [];
     },
     enabled: isLoaded && isSignedIn,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -433,19 +440,26 @@ export function useAvailableModels() {
   return useQuery({
     queryKey: ['available-models'],
     queryFn: async () => {
-      const response = await fetchJson<AvailableModelsResponse>(
-        '/api/v1/users/me/available-models'
-      );
+      try {
+        const response = await fetchJson<AvailableModelsResponse>(
+          '/api/v1/users/me/available-models'
+        );
 
-      if (response.error) {
-        throw new Error(response.error);
+        if (response.error) {
+          console.warn('Failed to fetch available models:', response.error);
+          return { models: [], user_providers: [] };
+        }
+
+        return response.data || { models: [], user_providers: [] };
+      } catch (error) {
+        console.warn('Available models API unavailable:', error);
+        return { models: [], user_providers: [] };
       }
-
-      return response.data;
     },
     enabled: isLoaded && isSignedIn,
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: false,
   });
 }
 
@@ -462,19 +476,26 @@ export function useAIUsage(days = 30, limit = 100) {
   return useQuery({
     queryKey: ['ai-usage', days, limit],
     queryFn: async () => {
-      const response = await fetchJson<UsageResponse>(
-        `/api/v1/users/me/ai-usage?days=${days}&limit=${limit}`
-      );
+      try {
+        const response = await fetchJson<UsageResponse>(
+          `/api/v1/users/me/ai-usage?days=${days}&limit=${limit}`
+        );
 
-      if (response.error) {
-        throw new Error(response.error);
+        if (response.error) {
+          console.warn('Failed to fetch AI usage:', response.error);
+          return null;
+        }
+
+        return response.data;
+      } catch (error) {
+        console.warn('AI usage API unavailable:', error);
+        return null;
       }
-
-      return response.data;
     },
     enabled: isLoaded && isSignedIn,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: false,
   });
 }
 

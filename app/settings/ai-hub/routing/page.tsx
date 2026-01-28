@@ -263,6 +263,10 @@ function ManualRulesTable({
   onDelete: (ruleId: string) => void;
   onToggle: (ruleId: string, enabled: boolean) => void;
 }) {
+  // Defensive: ensure arrays
+  const rulesArray = Array.isArray(rules) ? rules : [];
+  const modelsArray = Array.isArray(models) ? models : [];
+
   // Get task type display name
   const getTaskTypeName = (taskType: TaskType) => {
     return TASK_TYPES.find((t) => t.id === taskType)?.name || taskType;
@@ -270,7 +274,7 @@ function ManualRulesTable({
 
   // Get model display name
   const getModelName = (modelId: string) => {
-    return models.find((m) => m.model_id === modelId)?.display_name || modelId;
+    return modelsArray.find((m) => m.model_id === modelId)?.display_name || modelId;
   };
 
   return (
@@ -288,7 +292,7 @@ function ManualRulesTable({
         </Button>
       </div>
 
-      {rules.length === 0 ? (
+      {rulesArray.length === 0 ? (
         <div className="text-center py-8 border rounded-lg bg-muted/20">
           <Settings2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
           <p className="text-muted-foreground">No routing rules configured</p>
@@ -323,7 +327,7 @@ function ManualRulesTable({
               </tr>
             </thead>
             <tbody>
-              {rules
+              {[...rulesArray]
                 .sort((a, b) => a.priority - b.priority)
                 .map((rule) => (
                   <tr key={rule.id} className="border-b last:border-0">
@@ -597,10 +601,13 @@ function FallbackChain({
   onChange: (chain: FallbackProvider[]) => void;
   onTogglePlatformKeys: (value: boolean) => void;
 }) {
+  // Defensive: ensure chain is an array
+  const chainArray = Array.isArray(chain) ? chain : [];
+
   // Move provider up in the chain
   const moveUp = (index: number) => {
     if (index === 0) return;
-    const newChain = [...chain];
+    const newChain = [...chainArray];
     [newChain[index - 1], newChain[index]] = [newChain[index], newChain[index - 1]];
     // Update order numbers
     newChain.forEach((p, i) => (p.order = i + 1));
@@ -609,8 +616,8 @@ function FallbackChain({
 
   // Move provider down in the chain
   const moveDown = (index: number) => {
-    if (index === chain.length - 1) return;
-    const newChain = [...chain];
+    if (index === chainArray.length - 1) return;
+    const newChain = [...chainArray];
     [newChain[index], newChain[index + 1]] = [newChain[index + 1], newChain[index]];
     // Update order numbers
     newChain.forEach((p, i) => (p.order = i + 1));
@@ -619,7 +626,7 @@ function FallbackChain({
 
   // Toggle provider enabled status
   const toggleEnabled = (index: number) => {
-    const newChain = [...chain];
+    const newChain = [...chainArray];
     newChain[index] = { ...newChain[index], enabled: !newChain[index].enabled };
     onChange(newChain);
   };
@@ -634,7 +641,7 @@ function FallbackChain({
       </div>
 
       <div className="border rounded-lg divide-y">
-        {chain
+        {[...chainArray]
           .sort((a, b) => a.order - b.order)
           .map((provider, index) => (
             <div
@@ -680,7 +687,7 @@ function FallbackChain({
                   size="sm"
                   variant="ghost"
                   onClick={() => moveDown(index)}
-                  disabled={index === chain.length - 1}
+                  disabled={index === chainArray.length - 1}
                   className="h-8 w-8 p-0"
                 >
                   <ChevronDown className="h-4 w-4" />
@@ -739,8 +746,9 @@ export default function RoutingPage() {
     }
   }, [savedConfig]);
 
-  // Get models list
-  const models = modelsData?.models || [];
+  // Get models list - defensive array check
+  const modelsArray = modelsData?.models;
+  const models = Array.isArray(modelsArray) ? modelsArray : [];
 
   // Update config locally and mark as changed
   const updateLocalConfig = useCallback((updates: Partial<RoutingConfig>) => {
