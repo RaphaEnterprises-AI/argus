@@ -203,18 +203,22 @@ export default function AIHubDashboard() {
 
   const isLoading = aiSettingsLoading || providersLoading || usageLoading;
 
-  // Calculate stats
+  // Calculate stats - use defensive array checks
   const stats = useMemo(() => {
-    const availableModels = models.filter((m) => m.is_available).length;
-    const totalModels = models.length;
-    const connectedProviders = providerKeys.filter((k) => k.is_valid).length;
-    const totalProviders = providers.length;
+    const modelsArray = Array.isArray(models) ? models : [];
+    const providerKeysArray = Array.isArray(providerKeys) ? providerKeys : [];
+    const providersArray = Array.isArray(providers) ? providers : [];
+
+    const availableModels = modelsArray.filter((m) => m.is_available).length;
+    const totalModels = modelsArray.length;
+    const connectedProviders = providerKeysArray.filter((k) => k.is_valid).length;
+    const totalProviders = providersArray.length;
     const todaySpend = dailyUsage?.total_cost_usd ?? 0;
     const dailyBudget = budgetStatus?.daily_limit ?? 10;
     const budgetUsedPercent = dailyBudget > 0 ? (todaySpend / dailyBudget) * 100 : 0;
 
     // System availability (based on provider status)
-    const operationalProviders = providers.filter((p) => p.status === 'operational').length;
+    const operationalProviders = providersArray.filter((p) => p.status === 'operational').length;
     const systemAvailability = totalProviders > 0
       ? Math.round((operationalProviders / totalProviders) * 100)
       : 100;
@@ -234,9 +238,11 @@ export default function AIHubDashboard() {
   // Generate recommendations based on current state
   const recommendations = useMemo(() => {
     const recs: RecommendationProps[] = [];
+    const providerKeysArray = Array.isArray(providerKeys) ? providerKeys : [];
+    const modelsArray = Array.isArray(models) ? models : [];
 
     // No provider keys configured
-    if (providerKeys.length === 0) {
+    if (providerKeysArray.length === 0) {
       recs.push({
         title: 'Add your first API key',
         description: 'Connect a provider like OpenAI or Anthropic to unlock all AI features.',
@@ -260,7 +266,7 @@ export default function AIHubDashboard() {
     }
 
     // Invalid provider keys
-    const invalidKeys = providerKeys.filter((k) => !k.is_valid);
+    const invalidKeys = providerKeysArray.filter((k) => !k.is_valid);
     if (invalidKeys.length > 0) {
       recs.push({
         title: 'Fix invalid API keys',
@@ -273,7 +279,7 @@ export default function AIHubDashboard() {
     }
 
     // Suggest optimizing model selection
-    if (models.length > 0 && !preferences?.default_model) {
+    if (modelsArray.length > 0 && !preferences?.default_model) {
       recs.push({
         title: 'Set a default model',
         description: 'Choose your preferred AI model for faster interactions.',
