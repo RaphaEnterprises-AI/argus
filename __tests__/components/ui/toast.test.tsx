@@ -87,7 +87,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const toast = screen.getByTestId('toast');
-      expect(toast).toHaveClass('border', 'bg-card', 'text-card-foreground');
+      expect(toast).toHaveClass('border-border', 'bg-card', 'text-card-foreground');
     });
 
     it('renders with success variant', () => {
@@ -97,7 +97,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const toast = screen.getByTestId('toast');
-      expect(toast).toHaveClass('border-green-500/50', 'bg-green-500/10');
+      expect(toast).toHaveClass('border-green-600', 'bg-green-50');
     });
 
     it('renders with destructive variant', () => {
@@ -107,7 +107,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const toast = screen.getByTestId('toast');
-      expect(toast).toHaveClass('border-red-500/50', 'bg-red-500/10');
+      expect(toast).toHaveClass('border-red-600', 'bg-red-50');
     });
 
     it('renders with warning variant', () => {
@@ -117,7 +117,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const toast = screen.getByTestId('toast');
-      expect(toast).toHaveClass('border-amber-500/50', 'bg-amber-500/10');
+      expect(toast).toHaveClass('border-amber-600', 'bg-amber-50');
     });
 
     it('renders with info variant', () => {
@@ -127,7 +127,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const toast = screen.getByTestId('toast');
-      expect(toast).toHaveClass('border-blue-500/50', 'bg-blue-500/10');
+      expect(toast).toHaveClass('border-blue-600', 'bg-blue-50');
     });
 
     it('accepts custom className', () => {
@@ -226,7 +226,7 @@ describe('Toast Component', () => {
         </Toast>
       );
       const close = screen.getByTestId('close');
-      expect(close).toHaveClass('absolute', 'right-2', 'top-2');
+      expect(close).toHaveClass('absolute', 'right-3', 'top-3');
     });
   });
 
@@ -280,25 +280,25 @@ describe('Toast Component', () => {
     it('renders success icon', () => {
       const { container } = render(<ToastIcon variant="success" />);
       expect(container.querySelector('svg')).toBeInTheDocument();
-      expect(container.querySelector('svg')).toHaveClass('text-green-500');
+      expect(container.querySelector('svg')).toHaveClass('text-green-600');
     });
 
     it('renders destructive icon', () => {
       const { container } = render(<ToastIcon variant="destructive" />);
       expect(container.querySelector('svg')).toBeInTheDocument();
-      expect(container.querySelector('svg')).toHaveClass('text-red-500');
+      expect(container.querySelector('svg')).toHaveClass('text-red-600');
     });
 
     it('renders warning icon', () => {
       const { container } = render(<ToastIcon variant="warning" />);
       expect(container.querySelector('svg')).toBeInTheDocument();
-      expect(container.querySelector('svg')).toHaveClass('text-amber-500');
+      expect(container.querySelector('svg')).toHaveClass('text-amber-600');
     });
 
     it('renders info icon', () => {
       const { container } = render(<ToastIcon variant="info" />);
       expect(container.querySelector('svg')).toBeInTheDocument();
-      expect(container.querySelector('svg')).toHaveClass('text-blue-500');
+      expect(container.querySelector('svg')).toHaveClass('text-blue-600');
     });
 
     it('returns null for default variant', () => {
