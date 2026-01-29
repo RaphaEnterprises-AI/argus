@@ -334,6 +334,9 @@ function ProviderStatusCard({
       : 'down'
     : null;
 
+  // Use status from health check if available, otherwise fall back to provider status
+  const displayStatus = statusData?.status || provider.status;
+
   return (
     <Card className="hover:border-primary/50 transition-colors">
       <CardContent className="p-4">
@@ -359,8 +362,8 @@ function ProviderStatusCard({
 
           {isConnected ? (
             <div className="flex items-center gap-2">
-              <StatusDot status={provider.status} />
-              <StatusBadge status={provider.status} />
+              <StatusDot status={displayStatus} />
+              <StatusBadge status={displayStatus} />
             </div>
           ) : (
             <Button

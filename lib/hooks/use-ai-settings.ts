@@ -712,25 +712,50 @@ export function useProviderStatus(providerId: string | null | undefined) {
 
   return useQuery({
     queryKey: ['provider-status', providerId],
-    queryFn: async () => {
+    queryFn: async (): Promise<ProviderStatusResponse | null> => {
       if (!providerId) {
-        throw new Error('Provider ID is required');
+        return null;
       }
 
-      const response = await fetchJson<ProviderStatusResponse>(
-        `/api/v1/providers/${providerId}/status`
-      );
+      try {
+        const response = await fetchJson<ProviderStatusResponse>(
+          `/api/v1/providers/${providerId}/status`
+        );
 
-      if (response.error) {
-        throw new Error(response.error);
+        if (response.error) {
+          console.warn(`Failed to fetch status for ${providerId}:`, response.error);
+          // Return a default status on error instead of throwing
+          return {
+            provider_id: providerId,
+            status: 'unknown',
+            latency_ms: null,
+            last_checked_at: new Date().toISOString(),
+            error_rate_percent: 0,
+            uptime_percent_24h: 0,
+            incidents: [],
+          };
+        }
+
+        return response.data;
+      } catch (error) {
+        console.warn(`Provider status API error for ${providerId}:`, error);
+        // Return a default status on error instead of throwing
+        return {
+          provider_id: providerId,
+          status: 'unknown',
+          latency_ms: null,
+          last_checked_at: new Date().toISOString(),
+          error_rate_percent: 0,
+          uptime_percent_24h: 0,
+          incidents: [],
+        };
       }
-
-      return response.data;
     },
     enabled: isLoaded && isSignedIn && !!providerId,
     staleTime: 60 * 1000, // 1 minute - status changes frequently
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 60 * 1000, // Auto-refresh every minute when visible
+    retry: false,
   });
 }
 
